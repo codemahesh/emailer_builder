@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(update-config)",
+      "Bash(powershell -Command \"Compress-Archive -Path prd-to-ux -DestinationPath prd-to-ux.zip -Force\")"
+    ]
+  }
+}

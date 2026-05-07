@@ -1,0 +1,8 @@
+{
+  "skillOverrides": {
+    "prd-to-ux": "on"
+  },
+  "permissions": {
+    "defaultMode": "default"
+  }
+}
