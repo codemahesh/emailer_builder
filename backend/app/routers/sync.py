@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
@@ -29,9 +30,14 @@ from app.models.sync_job import SyncJob, SyncJobStatus
 from app.models.user import User
 from app.models.sheet_version import SheetVersion, SheetVersionRow
 from app.modules.file_parser import UploadParseError, detect_file_type, parse_bytes
+from app.modules.sheet_diff import compute_diff
+from app.modules.sheet_reader import read_sheet
 from app.modules.sheet_verifier import verify_sheet
 from app.modules.sheet_version_store import write_version
 from app.schemas.sync import (
+    ImportCommitResponse,
+    ImportPreflightResponse,
+    ImportRequest,
     ProductRead,
     SheetPreviewResponse,
     SheetVersionRead,
@@ -71,6 +77,255 @@ async def _get_campaign_or_404(
             detail="Campaign not found",
         )
     return campaign
+
+
+@router.post(
+    "/{campaign_id}/sheet/import",
+    responses={
+        200: {"model": ImportPreflightResponse},
+        202: {"model": ImportCommitResponse},
+    },
+)
+async def import_sheet(
+    campaign_id: uuid.UUID,
+    body: ImportRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Two-phase Update List endpoint.
+
+    phase="preflight"  — computes diff between live sheet and latest version.
+                         Returns 200 ImportPreflightResponse. No DB writes.
+    phase="commit"     — writes new version, upserts products, soft-deletes
+                         removed SKUs, enqueues smart re-scrape.
+                         Returns 202 ImportCommitResponse.
+    """
+    from app.models.product import Product, ProductPriority, Section
+    from app.config import settings
+
+    campaign = await _get_campaign_or_404(campaign_id, user, session)
+
+    if not campaign.sheet_url:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Campaign has no Google Sheet URL configured.",
+        )
+
+    # ── Load credentials ──────────────────────────────────────────────────────
+    import json as _json
+    credentials_json: dict = {}
+    if settings.google_sheets_credentials_json:
+        try:
+            credentials_json = _json.loads(settings.google_sheets_credentials_json)
+        except Exception:
+            logger.warning("import_sheet: could not parse GOOGLE_SHEETS_CREDENTIALS_JSON")
+
+    # ── Read live sheet ───────────────────────────────────────────────────────
+    try:
+        new_records = read_sheet(campaign.sheet_url, credentials_json)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not read Google Sheet: {exc}",
+        ) from exc
+
+    # ── Fetch latest version rows (old_records) ───────────────────────────────
+    sv_result = await session.execute(
+        select(SheetVersion)
+        .where(SheetVersion.campaign_id == campaign_id)
+        .order_by(SheetVersion.version.desc())
+        .limit(1)
+    )
+    latest_sv: Optional[SheetVersion] = sv_result.scalar_one_or_none()
+
+    old_records: list[dict] = []
+    if latest_sv is not None:
+        rows_result = await session.execute(
+            select(SheetVersionRow)
+            .where(SheetVersionRow.version_id == latest_sv.id)
+            .order_by(SheetVersionRow.position.asc())
+        )
+        old_records = [json.loads(r.data_json) for r in rows_result.scalars().all()]
+
+    # ── Compute diff ──────────────────────────────────────────────────────────
+    diff = compute_diff(old_records, new_records)
+
+    if body.phase == "preflight":
+        has_changes = bool(diff["added"] or diff["removed"] or diff["updated"])
+        return ImportPreflightResponse(
+            added=len(diff["added"]),
+            removed=len(diff["removed"]),
+            updated=len(diff["updated"]),
+            unchanged=len(diff["unchanged"]),
+            rescrape_count=diff["rescrape_count"],
+            has_changes=has_changes,
+        )
+
+    # ── phase == "commit" ─────────────────────────────────────────────────────
+
+    # Write new SheetVersion (checksum dedup handles unchanged sheets)
+    sv = await write_version(
+        session,
+        campaign_id=campaign_id,
+        rows=new_records,
+        source="link",
+        source_ref=campaign.sheet_url,
+        imported_by=user.id,
+    )
+
+    now = datetime.now(timezone.utc)
+    rescrape_product_ids: list[str] = []
+
+    # Upsert products by SKU
+    all_active_result = await session.execute(
+        select(Product).where(
+            Product.campaign_id == campaign_id,
+            Product.deleted_at.is_(None),
+        )
+    )
+    existing_by_sku: dict[str, Product] = {
+        p.sku: p for p in all_active_result.scalars().all()
+    }
+
+    # Apply removed → soft-delete
+    for row in diff["removed"]:
+        sku = row.get("sku", "")
+        if sku in existing_by_sku:
+            existing_by_sku[sku].deleted_at = now
+
+    # Apply updated → update fields, track link changes for re-scrape
+    for update in diff["updated"]:
+        sku = update["sku"]
+        new_row = update["new"]
+        if sku in existing_by_sku:
+            prod = existing_by_sku[sku]
+            raw_prio = new_row.get("priority", "medium") or "medium"
+            try:
+                prio = ProductPriority(raw_prio.lower())
+            except ValueError:
+                prio = ProductPriority.medium
+            prod.raw_price = new_row.get("raw_price") or None
+            prod.utm_campaign = new_row.get("utm_campaign") or None
+            prod.button_name = new_row.get("button_name") or None
+            prod.priority = prio
+            if update["link_changed"]:
+                prod.product_link = new_row.get("product_link", "")
+                prod.scraped_name = None
+                prod.scraped_image_url = None
+                prod.scrape_failed = True
+                rescrape_product_ids.append(str(prod.id))
+            prod.updated_at = now
+
+    # Apply added → create new products
+    # Rebuild section map from existing active sections
+    sec_result = await session.execute(
+        select(Section).where(Section.campaign_id == campaign_id)
+    )
+    sections_by_title: dict[str, Section] = {
+        s.title: s for s in sec_result.scalars().all()
+    }
+    section_pos = max((s.position for s in sections_by_title.values()), default=-1) + 1
+
+    max_pos_result = await session.execute(
+        select(Product.position)
+        .where(Product.campaign_id == campaign_id)
+        .order_by(Product.position.desc())
+        .limit(1)
+    )
+    pos_row = max_pos_result.scalar_one_or_none()
+    next_pos = (pos_row or 0) + 1
+
+    for new_row in diff["added"]:
+        title = new_row.get("section_title", "Default") or "Default"
+        if title not in sections_by_title:
+            sec = Section(campaign_id=campaign_id, title=title, position=section_pos)
+            session.add(sec)
+            await session.flush()
+            sections_by_title[title] = sec
+            section_pos += 1
+
+        raw_prio = new_row.get("priority", "medium") or "medium"
+        try:
+            prio = ProductPriority(raw_prio.lower())
+        except ValueError:
+            prio = ProductPriority.medium
+
+        prod = Product(
+            campaign_id=campaign_id,
+            section_id=sections_by_title[title].id,
+            sku=new_row.get("sku", "") or "",
+            product_link=new_row.get("product_link", "") or "",
+            priority=prio,
+            raw_price=new_row.get("raw_price") or None,
+            utm_campaign=new_row.get("utm_campaign") or None,
+            button_name=new_row.get("button_name") or None,
+            position=next_pos,
+            scrape_failed=True,
+        )
+        session.add(prod)
+        await session.flush()
+        rescrape_product_ids.append(str(prod.id))
+        next_pos += 1
+
+    # Check for soft-deleted products being restored (SKU returning)
+    all_deleted_result = await session.execute(
+        select(Product).where(
+            Product.campaign_id == campaign_id,
+            Product.deleted_at.is_not(None),
+        )
+    )
+    deleted_by_sku: dict[str, Product] = {
+        p.sku: p for p in all_deleted_result.scalars().all()
+    }
+    for new_row in diff["added"]:
+        sku = new_row.get("sku", "")
+        if sku in deleted_by_sku:
+            # Restore soft-deleted product
+            prod = deleted_by_sku[sku]
+            prod.deleted_at = None
+            prod.product_link = new_row.get("product_link", "")
+            prod.raw_price = new_row.get("raw_price") or None
+            prod.scrape_failed = True
+            prod.updated_at = now
+            rescrape_product_ids.append(str(prod.id))
+
+    # Create SyncJob for the re-scrape
+    from app.models.sync_job import SyncJob, SyncJobStatus
+    job = SyncJob(
+        campaign_id=campaign_id,
+        job_type="import",
+        status=SyncJobStatus.queued,
+        total_products=len(rescrape_product_ids),
+    )
+    session.add(job)
+    await session.flush()
+    await session.refresh(job)
+    job_id = str(job.id)
+
+    await session.commit()
+
+    # Enqueue smart re-scrape (only for link-changed + added products)
+    if rescrape_product_ids:
+        arq_pool = getattr(request.app.state, "arq_pool", None)
+        if arq_pool is not None:
+            try:
+                await arq_pool.enqueue_job(
+                    "run_import_scrape",
+                    campaign_id=str(campaign_id),
+                    product_ids=rescrape_product_ids,
+                    job_id=job_id,
+                    _job_id=f"import-{job_id}",
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("import_sheet: ARQ enqueue failed (%s)", exc)
+
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        content={"job_id": job_id, "status": "queued"},
+    )
 
 
 _MAX_UPLOAD_BYTES = 5 * 1024 * 1024   # 5 MB

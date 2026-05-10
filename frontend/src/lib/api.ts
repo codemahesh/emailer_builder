@@ -173,6 +173,28 @@ export const verifySheet = (
     .post(`/campaigns/${campaignId}/sheet/verify`, { sheet_url: sheetUrl })
     .then((r) => r.data)
 
+// ─── Import (Update List) ─────────────────────────────────────────────────────
+
+export interface ImportPreflightResponse {
+  added: number
+  removed: number
+  updated: number
+  unchanged: number
+  rescrape_count: number
+  has_changes: boolean
+}
+
+export interface ImportCommitResponse {
+  job_id: string
+  status: string
+}
+
+export const importSheetPreflight = (campaignId: string): Promise<ImportPreflightResponse> =>
+  api.post(`/campaigns/${campaignId}/sheet/import`, { phase: 'preflight' }).then((r) => r.data)
+
+export const importSheetCommit = (campaignId: string): Promise<ImportCommitResponse> =>
+  api.post(`/campaigns/${campaignId}/sheet/import`, { phase: 'commit' }).then((r) => r.data)
+
 // ─── File Upload ─────────────────────────────────────────────────────────────
 
 export interface UploadResponse {

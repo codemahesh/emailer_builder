@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -75,6 +75,26 @@ class ProductRead(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ── Import (Update List) ─────────────────────────────────────────────────────
+
+class ImportRequest(BaseModel):
+    phase: Literal["preflight", "commit"]
+
+
+class ImportPreflightResponse(BaseModel):
+    added: int = 0
+    removed: int = 0
+    updated: int = 0
+    unchanged: int = 0
+    rescrape_count: int = 0
+    has_changes: bool = False
+
+
+class ImportCommitResponse(BaseModel):
+    job_id: str
+    status: str   # "queued"
 
 
 # ── File upload ──────────────────────────────────────────────────────────────
