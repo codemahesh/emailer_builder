@@ -45,7 +45,7 @@ const sizeClasses: Record<ButtonSize, string> = {
   lg: 'h-11 px-6 text-body-strong rounded-md',
 }
 
-export function Button({
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   variant = 'primary',
   size = 'md',
   isLoading = false,
@@ -56,9 +56,10 @@ export function Button({
   className = '',
   disabled,
   ...props
-}: ButtonProps) {
+}, ref) {
   return (
     <button
+      ref={ref}
       className={[
         'inline-flex items-center justify-center gap-2 font-semibold transition-colors duration-150 outline-none',
         variantClasses[variant],
@@ -80,4 +81,4 @@ export function Button({
       {!isLoading && rightIcon}
     </button>
   )
-}
+})

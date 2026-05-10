@@ -329,6 +329,7 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastActionRef = useRef<'full' | 'quick_price' | null>(null)
   const kebabRef = useRef<HTMLDivElement>(null)
+  const updateListButtonRef = useRef<HTMLButtonElement>(null)
 
   // Close kebab on outside click
   useEffect(() => {
@@ -682,6 +683,7 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
         {/* Update List — filled primary, hidden for upload source */}
         {!isUploadSource && (
           <Button
+            ref={updateListButtonRef}
             variant="primary"
             fullWidth
             disabled={busy || isLoadingDiff}
@@ -801,7 +803,12 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
                 />
                 {renderSyncSummary()}
                 {renderActions()}
-                <PreviewTable campaignId={campaignId} />
+                <PreviewTable
+                  campaignId={campaignId}
+                  sheetUrl={savedSheetUrl}
+                  isUploadSource={false}
+                  onUpdateListFocus={() => updateListButtonRef.current?.focus()}
+                />
               </>
             ) : isConnected && verifyPhase.status === 'idle' ? (
               /* Campaign already has a saved URL but user hasn't re-verified in this session */
@@ -822,7 +829,12 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
                 <ServiceAccountRow email={serviceAccountEmail} />
                 {renderSyncSummary()}
                 {renderActions()}
-                <PreviewTable campaignId={campaignId} />
+                <PreviewTable
+                  campaignId={campaignId}
+                  sheetUrl={savedSheetUrl}
+                  isUploadSource={false}
+                  onUpdateListFocus={() => updateListButtonRef.current?.focus()}
+                />
               </>
             ) : (
               /* Unconnected / verify flow */
@@ -936,7 +948,10 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
                   </button>
                 </div>
                 {renderActions()}
-                <PreviewTable campaignId={campaignId} />
+                <PreviewTable
+                  campaignId={campaignId}
+                  isUploadSource={true}
+                />
               </div>
             ) : (
               <UploadDropzone

@@ -295,11 +295,11 @@ The cheap probe that lets users check whether the live source has diverged from 
 
 ### Acceptance criteria
 
-- [ ] Clicking refresh with no upstream changes flips the caption to `No changes since last import.` and never triggers Update List.
-- [ ] Clicking refresh after an upstream edit shows the inline `Updates available` banner with a working CTA that focuses Update List.
-- [ ] The probe never writes to the DB.
-- [ ] Refresh icon is disabled (or hidden) when source = upload.
-- [ ] Banner persists in the preview header until the next interaction (refresh, expand/collapse, or Update List click).
+- [x] Clicking refresh with no upstream changes flips the caption to `No changes since last import.` and never triggers Update List.
+- [x] Clicking refresh after an upstream edit shows the inline `Updates available` banner with a working CTA that focuses Update List.
+- [x] The probe never writes to the DB.
+- [x] Refresh icon is disabled (or hidden) when source = upload.
+- [x] Banner persists in the preview header until the next interaction (refresh, expand/collapse, or Update List click).
 
 ### Blocked by
 

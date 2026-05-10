@@ -2,10 +2,10 @@
 
 Source: `issues.md` in this folder. Update this file as issues are picked up, completed, or blocked. Designed for a Ralph loop to read at the start of each iteration and pick the next unblocked `todo` issue.
 
-**Progress:** 9 / 10 done (90%)
+**Progress:** 10 / 10 done (100%)
 
 ```
-[██████████████████░░] 90%
+[████████████████████] 100%
 ```
 
 ---
@@ -33,7 +33,7 @@ Source: `issues.md` in this folder. Update this file as issues are picked up, co
 | 7  | Update List + Update Summary + smart re-scrape worker          | AFK  | done        | 4       | 2026-05-10  | 2026-05-10  |       |
 | 8  | Action-button rationalization (three-button hierarchy)         | AFK  | done   | 7          | 2026-05-10  | 2026-05-10  |       |
 | 9  | Re-scrape progress card via WebSocket                          | AFK  | done   | 7          | 2026-05-10  | 2026-05-10  |       |
-| 10 | Preview refresh probe + "Updates available" banner             | AFK  | todo   | 5, 7       |             |             |       |
+| 10 | Preview refresh probe + "Updates available" banner             | AFK  | done   | 5, 7       | 2026-05-10  | 2026-05-10  |       |
 
 ---
 
@@ -78,6 +78,8 @@ If an issue cannot proceed (external blocker, ambiguous spec), set status to `bl
 
 Append a one-line entry below each time an issue's status changes. Newest at the top.
 
+- 2026-05-10 — Issue 10: in_progress → done
+- 2026-05-10 — Issue 10: todo → in_progress
 - 2026-05-10 — Issue 9: in_progress → done
 - 2026-05-10 — Issue 9: todo → in_progress
 - 2026-05-10 — Issue 8: in_progress → done
