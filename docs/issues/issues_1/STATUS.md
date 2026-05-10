@@ -2,10 +2,10 @@
 
 Source: `issues.md` in this folder. Update this file as issues are picked up, completed, or blocked. Designed for a Ralph loop to read at the start of each iteration and pick the next unblocked `todo` issue.
 
-**Progress:** 5 / 10 done (50%)
+**Progress:** 6 / 10 done (60%)
 
 ```
-[██████████░░░░░░░░░░] 50%
+[████████████░░░░░░░░] 60%
 ```
 
 ---
@@ -29,7 +29,7 @@ Source: `issues.md` in this folder. Update this file as issues are picked up, co
 | 3  | Downloadable templates                                         | AFK  | done        | 2       | 2026-05-10  | 2026-05-10  |       |
 | 4  | Versioned snapshots on Full Sync                               | AFK  | done        | 1       | 2026-05-10  | 2026-05-10  |       |
 | 5  | Preview endpoint + collapsible preview table                   | AFK  | done        | 4       | 2026-05-10  | 2026-05-10  |       |
-| 6  | File upload path (Upload tab end-to-end)                       | AFK  | in_progress | 2, 4    | 2026-05-10  |             |       |
+| 6  | File upload path (Upload tab end-to-end)                       | AFK  | done        | 2, 4    | 2026-05-10  | 2026-05-10  |       |
 | 7  | Update List + Update Summary + smart re-scrape worker          | AFK  | todo   | 4          |             |             |       |
 | 8  | Action-button rationalization (three-button hierarchy)         | AFK  | todo   | 7          |             |             |       |
 | 9  | Re-scrape progress card via WebSocket                          | AFK  | todo   | 7          |             |             |       |
@@ -78,6 +78,7 @@ If an issue cannot proceed (external blocker, ambiguous spec), set status to `bl
 
 Append a one-line entry below each time an issue's status changes. Newest at the top.
 
+- 2026-05-10 — Issue 6: in_progress → done
 - 2026-05-10 — Issue 6: todo → in_progress
 - 2026-05-10 — Issue 5: in_progress → done
 - 2026-05-10 — Issue 5: todo → in_progress

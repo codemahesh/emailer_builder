@@ -168,13 +168,13 @@ Persona B's primary path: drop an `.xlsx` or `.csv`, parse it server-side using 
 
 ### Acceptance criteria
 
-- [ ] Both `.xlsx` and `.csv` parse correctly through the same `sheet_parser` path.
-- [ ] Files >5 MB or with >10,000 rows are rejected with the documented error before parsing.
-- [ ] Wrong MIME types rejected server-side regardless of extension.
-- [ ] All five error codes (where applicable: `MISSING_COLUMNS`, `EMPTY_SHEET`) surface in the dropzone error state with the same banner copy as Link.
-- [ ] After upload success, the connection chip shows `[Upload (one-shot)]` and Update List is not visible.
-- [ ] Re-uploading replaces the prior file (treated as a new version).
-- [ ] Cancel during upload aborts the XHR.
+- [x] Both `.xlsx` and `.csv` parse correctly through the same `sheet_parser` path.
+- [x] Files >5 MB or with >10,000 rows are rejected with the documented error before parsing.
+- [x] Wrong MIME types rejected server-side regardless of extension.
+- [x] All five error codes (where applicable: `MISSING_COLUMNS`, `EMPTY_SHEET`) surface in the dropzone error state with the same banner copy as Link.
+- [x] After upload success, the connection chip shows `[Upload (one-shot)]` and Update List is not visible.
+- [x] Re-uploading replaces the prior file (treated as a new version).
+- [x] Cancel during upload aborts the XHR.
 
 ### Blocked by
 

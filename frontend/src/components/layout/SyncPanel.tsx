@@ -13,6 +13,8 @@ import {
 } from '../../lib/api'
 import { showToast } from '../ui/Toast'
 import { PreviewTable } from './PreviewTable'
+import { UploadDropzone } from './UploadDropzone'
+import type { UploadResponse } from '../../lib/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -321,6 +323,7 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   const [hasEverSynced, setHasEverSynced] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [showFailureDrawer, setShowFailureDrawer] = useState(false)
+  const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null)
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -575,10 +578,12 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
             role="tab"
             aria-selected={source === 'upload'}
             type="button"
-            disabled
-            aria-disabled="true"
-            className="flex-1 py-2 text-center text-neutral-300 bg-white cursor-not-allowed"
-            title="File upload coming soon"
+            onClick={() => handleSourceSwitch('upload')}
+            className={`flex-1 py-2 text-center transition-colors ${
+              source === 'upload'
+                ? 'bg-brand-primary text-white'
+                : 'bg-white text-neutral-500 hover:bg-neutral-50'
+            }`}
           >
             Upload
           </button>
@@ -706,15 +711,42 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
           </>
         )}
 
-        {/* Upload tab placeholder */}
+        {/* Upload tab */}
         {source === 'upload' && (
-          <div className="flex flex-col items-center justify-center py-8 gap-2 text-neutral-400">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-              <rect x="6" y="4" width="20" height="24" rx="3" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M11 12h10M11 17h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            <p className="text-small text-center">File upload coming in a future update.</p>
-          </div>
+          <>
+            {uploadResult?.ok ? (
+              /* Upload success state — connection chip */
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2 rounded-lg border border-success-200 bg-success-50 p-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-small-strong text-success-800">
+                      Uploaded · {uploadResult.imported_count} products
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-success-100 text-small text-success-700 font-mono">
+                        Upload (one-shot)
+                      </span>
+                    </p>
+                    <p className="text-small text-success-600 mt-0.5">
+                      Detected columns: {uploadResult.headers_found.join(', ')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUploadResult(null)}
+                    className="text-small text-success-500 hover:text-success-700 underline flex-shrink-0"
+                  >
+                    Replace file
+                  </button>
+                </div>
+                {renderActions()}
+                <PreviewTable campaignId={campaignId} />
+              </div>
+            ) : (
+              <UploadDropzone
+                campaignId={campaignId}
+                onSuccess={(res) => setUploadResult(res)}
+              />
+            )}
+          </>
         )}
       </div>
 
