@@ -14,7 +14,7 @@ param(
   [string]$Model = 'claude-opus-4-7'
 )
 
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 
 $repoRoot   = Resolve-Path (Join-Path $PSScriptRoot '..\..\..')
 $promptPath = Join-Path $PSScriptRoot 'PROMPT.md'
@@ -23,11 +23,9 @@ $statusPath = Join-Path $PSScriptRoot 'STATUS.md'
 if (-not (Test-Path $promptPath)) { throw "Missing $promptPath" }
 if (-not (Test-Path $statusPath)) { throw "Missing $statusPath" }
 
-$prompt = Get-Content $promptPath -Raw
-
 if ($DryRun) {
   Write-Host '--- PROMPT ---'
-  Write-Host $prompt
+  Get-Content $promptPath -Raw | Write-Host
   exit 0
 }
 
@@ -52,10 +50,11 @@ for ($i = 1; $i -le $MaxIterations; $i++) {
     exit 0
   }
 
-  # Spawn one fresh Claude iteration.
-  & claude -p $prompt `
-    --dangerously-skip-permissions `
-    --model $Model
+  # Spawn one fresh Claude iteration. Pipe the prompt via stdin to avoid
+  # arg-quoting issues with multi-line prompts on Windows. cmd /c keeps
+  # PowerShell's NativeCommandError wrapper out of the way.
+  $cmd = "type `"$promptPath`" | claude -p --dangerously-skip-permissions --model $Model"
+  cmd /c $cmd
 
   $exit = $LASTEXITCODE
   if ($exit -ne 0) {

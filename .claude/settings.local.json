@@ -43,7 +43,8 @@
       "PowerShell(pip install *)",
       "PowerShell(Get-NetTCPConnection *)",
       "Bash(chmod +x docs/issues/issues_1/run.sh)",
-      "Bash(where.exe claude *)"
+      "Bash(where.exe claude *)",
+      "PowerShell(cmd /c 'type docs\\\\issues\\\\issues_1\\\\PROMPT.md | claude -p --dangerously-skip-permissions --model claude-opus-4-7' > docs\\\\issues\\\\issues_1\\\\ralph.log 2>&1; \"exit=$LASTEXITCODE\")"
     ]
   }
 }
