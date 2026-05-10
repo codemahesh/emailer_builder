@@ -7,6 +7,22 @@ from pydantic import BaseModel
 from app.models.product import ProductPriority
 
 
+# ── Sheet verify ──────────────────────────────────────────────────────────────
+
+class VerifyRequest(BaseModel):
+    sheet_url: str
+
+
+class VerifyResponse(BaseModel):
+    ok: bool
+    error_code: Optional[str] = None      # INVALID_URL | NOT_FOUND | NOT_SHARED | EMPTY_SHEET | MISSING_COLUMNS
+    headers_found: list[str] = []
+    missing_columns: list[str] = []
+    row_count: int = 0
+    sheet_title: str = ""
+    tab_count: int = 0
+
+
 # ── Sync job / status ─────────────────────────────────────────────────────────
 
 class SyncJobResponse(BaseModel):

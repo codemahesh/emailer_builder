@@ -27,10 +27,13 @@ from app.models.campaign import Campaign
 from app.models.product import Product
 from app.models.sync_job import SyncJob, SyncJobStatus
 from app.models.user import User
+from app.modules.sheet_verifier import verify_sheet
 from app.schemas.sync import (
     ProductRead,
     SyncJobResponse,
     SyncStatusResponse,
+    VerifyRequest,
+    VerifyResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,6 +65,44 @@ async def _get_campaign_or_404(
             detail="Campaign not found",
         )
     return campaign
+
+
+@router.post("/{campaign_id}/sheet/verify", response_model=VerifyResponse)
+async def verify_sheet_connection(
+    campaign_id: uuid.UUID,
+    body: VerifyRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+    request: Request = None,  # type: ignore[assignment]
+) -> VerifyResponse:
+    """
+    Read-only: verify that a Google Sheet URL is accessible and has the required columns.
+
+    Returns the verify result without writing anything to the database.
+    Fires only on explicit click — not on input change or blur (C1).
+    """
+    await _get_campaign_or_404(campaign_id, user, session)
+
+    import json as _json
+    from app.config import settings
+
+    credentials_json: dict = {}
+    if settings.google_sheets_credentials_json:
+        try:
+            credentials_json = _json.loads(settings.google_sheets_credentials_json)
+        except Exception:
+            logger.warning("verify_sheet_connection: could not parse GOOGLE_SHEETS_CREDENTIALS_JSON")
+
+    try:
+        result = verify_sheet(body.sheet_url, credentials_json)
+    except Exception as exc:
+        logger.warning("verify_sheet_connection: unexpected error for campaign %s: %s", campaign_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not reach Google Sheets. Please try again.",
+        ) from exc
+
+    return VerifyResponse(**result)
 
 
 @router.post("/{campaign_id}/sync/full", response_model=SyncJobResponse, status_code=status.HTTP_202_ACCEPTED)

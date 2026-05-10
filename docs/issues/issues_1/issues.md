@@ -49,14 +49,14 @@ End-to-end verification path on the Link tab. User pastes URL, clicks **Verify &
 
 ### Acceptance criteria
 
-- [ ] Verify fires only on click — pasting/blurring the input does not call the API.
-- [ ] Each of the five error codes renders the exact banner copy from UX §B-3.
-- [ ] `NOT_SHARED` banner shows the service-account email with a working copy button (icon → checkmark for 2 s).
-- [ ] `EMPTY_SHEET` banner is yellow/warning and offers "Connect anyway"; the other four are red/danger and have no dismiss.
-- [ ] Successful verify replaces the URL input with a connection chip showing sheet title + truncated URL + row count + detected-columns chips.
-- [ ] p95 latency < 3 s for a 1,000-row sheet (PRD §5.2). Loading spinner appears within 100 ms.
-- [ ] Switching to the Upload tab and back preserves the typed URL but clears verification status (UX I2).
-- [ ] Backend e2e test covers all five error codes against fixtures.
+- [x] Verify fires only on click — pasting/blurring the input does not call the API.
+- [x] Each of the five error codes renders the exact banner copy from UX §B-3.
+- [x] `NOT_SHARED` banner shows the service-account email with a working copy button (icon → checkmark for 2 s).
+- [x] `EMPTY_SHEET` banner is yellow/warning and offers "Connect anyway"; the other four are red/danger and have no dismiss.
+- [x] Successful verify replaces the URL input with a connection chip showing sheet title + truncated URL + row count + detected-columns chips.
+- [x] p95 latency < 3 s for a 1,000-row sheet (PRD §5.2). Loading spinner appears within 100 ms.
+- [x] Switching to the Upload tab and back preserves the typed URL but clears verification status (UX I2).
+- [x] Backend e2e test covers all five error codes against fixtures.
 
 ### Blocked by
 

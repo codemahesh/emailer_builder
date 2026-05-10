@@ -2,10 +2,10 @@
 
 Source: `issues.md` in this folder. Update this file as issues are picked up, completed, or blocked. Designed for a Ralph loop to read at the start of each iteration and pick the next unblocked `todo` issue.
 
-**Progress:** 1 / 10 done (10%)
+**Progress:** 2 / 10 done (20%)
 
 ```
-[██░░░░░░░░░░░░░░░░░░] 10%
+[████░░░░░░░░░░░░░░░░] 20%
 ```
 
 ---
@@ -25,7 +25,7 @@ Source: `issues.md` in this folder. Update this file as issues are picked up, co
 | #  | Title                                                          | Type | Status | Blocked by | Started     | Completed   | Notes |
 |----|----------------------------------------------------------------|------|--------|------------|-------------|-------------|-------|
 | 1  | Schema foundation + `sheet_parser` extraction                  | AFK  | done        | —          | 2026-05-10  | 2026-05-10  |       |
-| 2  | Verify endpoint + Link-tab UI with all error banners           | AFK  | in_progress | 1       | 2026-05-10  |             |       |
+| 2  | Verify endpoint + Link-tab UI with all error banners           | AFK  | done        | 1       | 2026-05-10  | 2026-05-10  |       |
 | 3  | Downloadable templates                                         | AFK  | todo   | 2          |             |             |       |
 | 4  | Versioned snapshots on Full Sync                               | AFK  | todo   | 1          |             |             |       |
 | 5  | Preview endpoint + collapsible preview table                   | AFK  | todo   | 4          |             |             |       |
@@ -78,6 +78,7 @@ If an issue cannot proceed (external blocker, ambiguous spec), set status to `bl
 
 Append a one-line entry below each time an issue's status changes. Newest at the top.
 
+- 2026-05-10 — Issue 2: in_progress → done
 - 2026-05-10 — Issue 2: todo → in_progress
 - 2026-05-10 — Issue 1: in_progress → done
 - 2026-05-10 — Issue 1: todo → in_progress
