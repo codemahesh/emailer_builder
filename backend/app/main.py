@@ -135,6 +135,13 @@ app.include_router(
     tags=["auth"],
 )
 
+# Alias: POST /auth/login, POST /auth/logout (matches Issue 1 AC text)
+app.include_router(
+    fastapi_users.get_auth_router(auth_backend),
+    prefix="/auth",
+    tags=["auth"],
+)
+
 # Registration: POST /auth/register
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),

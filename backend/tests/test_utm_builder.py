@@ -87,6 +87,31 @@ def test_url_already_has_utm_still_appends():
     assert result.count("utm_campaign") == 2
 
 
+# ── Global prefix concatenation (Tech PRD module 15) ────────────────────────
+
+def test_global_prefix_prepended_to_slug():
+    """global_prefix is concatenated in front of the per-row utm slug."""
+    result = build_utm("summer_sale", "https://example.com/p", "EMAIL_")
+    assert result == "https://example.com/p?utm_campaign=EMAIL_summer_sale"
+
+
+def test_global_prefix_alone_when_slug_empty():
+    """An empty slug + non-empty prefix still appends utm_campaign=<prefix>."""
+    result = build_utm(None, "https://example.com/p", "EMAIL_2026")
+    assert result == "https://example.com/p?utm_campaign=EMAIL_2026"
+
+
+def test_blank_prefix_and_blank_slug_returns_url_unchanged():
+    """Both prefix and slug blank → URL is returned untouched."""
+    assert build_utm("", "https://example.com/p", "") == "https://example.com/p"
+    assert build_utm(None, "https://example.com/p", None) == "https://example.com/p"
+
+
+def test_global_prefix_with_existing_query_uses_amp_separator():
+    result = build_utm("sale", "https://example.com/p?ref=ig", "Q1_")
+    assert result == "https://example.com/p?ref=ig&utm_campaign=Q1_sale"
+
+
 # ── Long / realistic URL ─────────────────────────────────────────────────────
 
 def test_realistic_product_url():

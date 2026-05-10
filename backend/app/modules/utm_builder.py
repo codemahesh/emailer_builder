@@ -51,23 +51,34 @@ from typing import Optional
 from urllib.parse import urlparse, urlencode, parse_qs, urlunparse, urljoin
 
 
-def build_utm(utm_campaign: Optional[str], product_link: Optional[str]) -> str:
+def build_utm(
+    utm_campaign: Optional[str],
+    product_link: Optional[str],
+    global_prefix: Optional[str] = None,
+) -> str:
     """
     Build a UTM-stitched URL.
+
+    The final ``utm_campaign`` value is the concatenation of *global_prefix*
+    (from settings) and the per-row *utm_campaign* slug. Either side may be
+    empty.
 
     Parameters
     ----------
     utm_campaign:
-        The value for the ``utm_campaign`` query parameter.  Pass None or an
-        empty/whitespace-only string to skip appending UTM params.
+        The per-row slug from the Sheet's ``UTM_Campaign`` column. Pass None
+        or empty to use *global_prefix* alone.
     product_link:
         The base product URL.  Pass None or empty to receive "".
+    global_prefix:
+        Optional global UTM prefix from ``settings.global_utm_prefix``.
+        Concatenated as-is (no separator added) before *utm_campaign*.
 
     Returns
     -------
     str
         The product URL with ``utm_campaign`` appended, or the URL unchanged
-        if *utm_campaign* is blank, or "" if *product_link* is blank.
+        if both prefix and slug are blank, or "" if *product_link* is blank.
     """
     # Guard: no URL → nothing to do
     if not product_link or not product_link.strip():
@@ -75,13 +86,14 @@ def build_utm(utm_campaign: Optional[str], product_link: Optional[str]) -> str:
 
     base_url = product_link.strip()
 
-    # Guard: no campaign value → return URL unchanged
-    if not utm_campaign or not utm_campaign.strip():
+    prefix_value = (global_prefix or "").strip()
+    slug_value = (utm_campaign or "").strip()
+    campaign_value = f"{prefix_value}{slug_value}"
+
+    # Guard: nothing to append
+    if not campaign_value:
         return base_url
 
-    campaign_value = utm_campaign.strip()
-
-    # Determine the correct separator
     separator = "&" if "?" in base_url else "?"
     return f"{base_url}{separator}utm_campaign={campaign_value}"
 

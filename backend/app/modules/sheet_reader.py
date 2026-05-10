@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 from typing import Optional, TypedDict
 
+from app.config import settings
 from app.modules.price_formatter import format_price
 from app.modules.utm_builder import build_utm
 
@@ -90,7 +91,11 @@ def _build_product_record(
     raw_price = row_dict.get("raw_price", "").strip() or None
     formatted_price = format_price(raw_price) if raw_price else None
     utm_campaign = row_dict.get("utm_campaign", "").strip() or None
-    utm_stitched = build_utm(utm_campaign, product_link) if product_link else None
+    utm_stitched = (
+        build_utm(utm_campaign, product_link, settings.global_utm_prefix)
+        if product_link
+        else None
+    )
     button_name = row_dict.get("button_name", "").strip() or None
 
     return ProductRecord(

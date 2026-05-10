@@ -38,7 +38,12 @@
       "PowerShell(curl.exe -s -X POST http://localhost:8000/auth/jwt/login -H \"Content-Type: application/x-www-form-urlencoded\" -d \"username=admin@emailer.com&password=Admin@1234\")",
       "PowerShell($token = \\(curl.exe -s -X POST http://localhost:8000/auth/jwt/login -H \"Content-Type: application/x-www-form-urlencoded\" -d \"username=admin@emailer.com&password=Admin@1234\" | ConvertFrom-Json\\).access_token; curl.exe -s -X PATCH http://localhost:8000/settings -H \"Content-Type: application/json\" -H \"Authorization: Bearer $token\" --data-binary \"{`\"service_account_email`\": `\"emailer-service-account@email-builder-495716.iam.gserviceaccount.com`\"}\")",
       "PowerShell(Start-Process \"D:\\\\emailer_builder\\\\Product_Import_Template.xlsx\")",
-      "PowerShell(Get-Process *)"
+      "PowerShell(Get-Process *)",
+      "Bash(uvicorn app.main:app --reload --port 8000)",
+      "PowerShell(pip install *)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(chmod +x docs/issues/issues_1/run.sh)",
+      "Bash(where.exe claude *)"
     ]
   }
 }

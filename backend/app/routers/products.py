@@ -22,12 +22,13 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.backend import current_active_user
 from app.database import get_async_session
 from app.models.campaign import Campaign
+from app.models.manual_override import ManualOverride
 from app.models.product import Product
 from app.models.user import User
 from app.modules.image_store import image_store
@@ -213,7 +214,27 @@ async def replace_product_image(
     stored_url = await image_store.write(image_bytes, filename)
 
     product.scraped_image_url = stored_url
+    product.processed_image_url = stored_url
     product.scrape_failed = False
+
+    # ── Record ManualOverride so the "Manual" provenance pill renders, ─────
+    # ── and so the override survives Fast Sync (Issue 3 AC + Issue 11). ────
+    await session.execute(
+        delete(ManualOverride).where(
+            ManualOverride.campaign_id == campaign_id,
+            ManualOverride.target_type == "product_image",
+            ManualOverride.target_id == str(product_id),
+        )
+    )
+    session.add(
+        ManualOverride(
+            campaign_id=campaign_id,
+            target_type="product_image",
+            target_id=str(product_id),
+            override_url=stored_url,
+            created_by=user.id,
+        )
+    )
 
     await session.flush()
     return product
@@ -234,7 +255,17 @@ async def revert_product_image(
     product = await _get_product_or_404(product_id, campaign_id, session)
 
     product.scraped_image_url = _COMING_SOON_URL
+    product.processed_image_url = _COMING_SOON_URL
     product.scrape_failed = True
+
+    # Clear any matching ManualOverride so the provenance pill flips back.
+    await session.execute(
+        delete(ManualOverride).where(
+            ManualOverride.campaign_id == campaign_id,
+            ManualOverride.target_type == "product_image",
+            ManualOverride.target_id == str(product_id),
+        )
+    )
 
     await session.flush()
     return product
