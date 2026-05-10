@@ -1,0 +1,80 @@
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+.pytype/
+
+# ── Node / Frontend ──────────────────────────────────────────────────────────
+node_modules/
+dist/
+.cache/
+*.local
+
+# Build output
+frontend/dist/
+frontend/build/
+
+# ── Environment & Secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# ── Database ─────────────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── IDEs & Editors ───────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Alembic ──────────────────────────────────────────────────────────────────
+backend/app/migrations/versions/*.py
+!backend/app/migrations/versions/.gitkeep
