@@ -24,6 +24,7 @@ from app.models.manual_override import ManualOverride
 from app.models.product import Product
 from app.models.sync_job import SyncJob, SyncJobStatus
 from app.modules.product_scraper import scrape_product
+from app.ws.gateway import gateway
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,14 @@ async def run_import_scrape(
 
     imported = 0
     failed = 0
+    preserved = 0  # products whose processed_image_url was kept (manual override)
+    total = len(product_ids)
+
+    await gateway.send_progress(
+        cid,
+        "sync_progress",
+        {"status": "running", "processed": 0, "total": total, "failed": 0},
+    )
 
     async with async_session_maker() as session:
         # Collect product IDs that have a manual image override
@@ -73,7 +82,7 @@ async def run_import_scrape(
         )
         overridden_ids: set[str] = {str(r) for (r,) in override_result.all() if r}
 
-        for pid in product_ids:
+        for idx, pid in enumerate(product_ids):
             try:
                 prod_result = await session.execute(
                     select(Product).where(Product.id == uuid.UUID(pid))
@@ -81,6 +90,8 @@ async def run_import_scrape(
                 product = prod_result.scalar_one_or_none()
                 if product is None:
                     continue
+
+                sku = product.sku or pid
 
                 result = await scrape_product(product.product_link)
 
@@ -91,12 +102,35 @@ async def run_import_scrape(
                     # Only update processed_image_url if no manual override exists
                     if pid not in overridden_ids:
                         product.processed_image_url = result.image_url
+                    else:
+                        preserved += 1
                 else:
                     product.scrape_failed = True
                     failed += 1
 
                 imported += 1
                 await session.flush()
+
+                await gateway.send_progress(
+                    cid,
+                    "image_processed",
+                    {
+                        "product_id": pid,
+                        "sku": sku,
+                        "url": product.processed_image_url or "",
+                        "preserved": pid in overridden_ids,
+                    },
+                )
+                await gateway.send_progress(
+                    cid,
+                    "sync_progress",
+                    {
+                        "status": "running",
+                        "processed": imported,
+                        "total": total,
+                        "failed": failed,
+                    },
+                )
 
             except Exception:  # noqa: BLE001
                 logger.warning("run_import_scrape: failed for product %s", pid, exc_info=True)
@@ -109,6 +143,7 @@ async def run_import_scrape(
             logger.warning("run_import_scrape: commit failed")
 
     final_status = SyncJobStatus.completed if failed == 0 else SyncJobStatus.partial
+    rescrape_count = imported - preserved
 
     if job_id:
         async with async_session_maker() as session:
@@ -123,16 +158,33 @@ async def run_import_scrape(
                 job.completed_at = datetime.now(timezone.utc)
                 await session.commit()
 
+    # Emit final WS event
+    await gateway.send_progress(
+        cid,
+        "sync_progress",
+        {
+            "status": "done" if failed == 0 else "partial",
+            "processed": imported,
+            "total": total,
+            "failed": failed,
+            "preserved_count": preserved,
+            "rescrape_count": rescrape_count,
+        },
+    )
+
     # Write final status to Redis
+    import json as _json
     try:
         last_synced = datetime.now(timezone.utc).isoformat()
         await redis.set(
             f"{_REDIS_KEY_PREFIX}{cid}",
-            __import__("json").dumps({
+            _json.dumps({
                 "status": "done" if failed == 0 else "partial",
-                "total": len(product_ids),
+                "total": total,
                 "imported": imported,
                 "failed": failed,
+                "preserved_count": preserved,
+                "rescrape_count": rescrape_count,
                 "last_synced": last_synced,
             }),
             ex=3600,
@@ -141,10 +193,11 @@ async def run_import_scrape(
         pass
 
     logger.info(
-        "run_import_scrape: campaign %s done — %d/%d scraped, %d failed",
+        "run_import_scrape: campaign %s done — %d/%d scraped, %d failed, %d preserved",
         cid,
         imported,
-        len(product_ids),
+        total,
         failed,
+        preserved,
     )
-    return {"campaign_id": cid, "imported": imported, "failed": failed}
+    return {"campaign_id": cid, "imported": imported, "failed": failed, "preserved": preserved}

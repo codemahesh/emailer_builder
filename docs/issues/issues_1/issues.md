@@ -265,12 +265,12 @@ While a sync job is in flight, the action zone collapses into a progress card dr
 
 ### Acceptance criteria
 
-- [ ] Starting a Full Sync immediately replaces the action zone with the progress card.
-- [ ] Refreshing the page mid-sync re-renders the progress card with current state.
-- [ ] All sync buttons return to enabled only when no job is in flight for the campaign.
-- [ ] Post-Update List toast lists `m re-scraped` and `k preserved (manual overrides)`.
-- [ ] Post-Full-Sync toast lists `k preserved (manual overrides)`.
-- [ ] WebSocket disconnect during sync does not lose the job; reconnecting picks up the live state.
+- [x] Starting a Full Sync immediately replaces the action zone with the progress card.
+- [x] Refreshing the page mid-sync re-renders the progress card with current state.
+- [x] All sync buttons return to enabled only when no job is in flight for the campaign.
+- [x] Post-Update List toast lists `m re-scraped` and `k preserved (manual overrides)`.
+- [x] Post-Full-Sync toast lists `k preserved (manual overrides)`.
+- [x] WebSocket disconnect during sync does not lose the job; reconnecting picks up the live state.
 
 ### Blocked by
 

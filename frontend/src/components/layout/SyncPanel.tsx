@@ -10,11 +10,14 @@ import {
   type Campaign,
   type SyncStatus,
   type VerifyResponse,
+  type ImageProcessingProgress,
 } from '../../lib/api'
 import { showToast } from '../ui/Toast'
 import { PreviewTable } from './PreviewTable'
 import { UploadDropzone } from './UploadDropzone'
 import { UpdateSummary } from './UpdateSummary'
+import { RescrapeProgressCard } from './RescrapeProgressCard'
+import { useWebSocket } from '../../hooks/useWebSocket'
 import {
   importSheetPreflight,
   importSheetCommit,
@@ -75,22 +78,6 @@ function CopyButton({ value, label }: { value: string; label?: string }) {
         </>
       )}
     </button>
-  )
-}
-
-function ProgressBar({ value, max }: { value: number; max: number }) {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0
-  return (
-    <div className="w-full h-1.5 bg-neutral-200 rounded-full overflow-hidden">
-      <div
-        className="h-full bg-brand-primary transition-all duration-300"
-        style={{ width: `${pct}%` }}
-        role="progressbar"
-        aria-valuenow={value}
-        aria-valuemin={0}
-        aria-valuemax={max}
-      />
-    </div>
   )
 }
 
@@ -334,6 +321,10 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   const [isImporting, setIsImporting] = useState(false)
   const [isLoadingDiff, setIsLoadingDiff] = useState(false)
   const [kebabOpen, setKebabOpen] = useState(false)
+  const [wsProgress, setWsProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 })
+  const [lastCompletedSku, setLastCompletedSku] = useState<string | undefined>()
+  const preservedCountRef = useRef(0)
+  const rescrapedCountRef = useRef(0)
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastActionRef = useRef<'full' | 'quick_price' | null>(null)
@@ -349,6 +340,47 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
     if (kebabOpen) document.addEventListener('mousedown', handleOutside)
     return () => document.removeEventListener('mousedown', handleOutside)
   }, [kebabOpen])
+
+  // On mount: resume in-flight sync if one is already running (handles page refresh mid-sync)
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const s = await getSyncStatus(campaignId)
+        if (cancelled) return
+        if (s.status === 'running' || s.status === 'queued') {
+          setSyncPhase('running')
+          setSyncStatus(s)
+          startPolling()
+        } else if (s.status === 'completed' || s.status === 'partial') {
+          setHasEverSynced(true)
+        }
+      } catch {
+        // ignore
+      }
+    })()
+    return () => { cancelled = true }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // WebSocket handler: track live scrape progress
+  const handleWsMessage = useCallback((msg: ImageProcessingProgress) => {
+    if (msg.type === 'sync_progress') {
+      const d = msg.data
+      const status = d.status ?? ''
+      if (status === 'running') {
+        setWsProgress({ done: d.processed ?? 0, total: d.total ?? 0 })
+      } else if (status === 'done' || status === 'completed' || status === 'partial') {
+        preservedCountRef.current = d.preserved_count ?? 0
+        rescrapedCountRef.current = d.rescrape_count ?? (d.processed ?? 0)
+      }
+    } else if (msg.type === 'image_processed') {
+      if (msg.data.sku) {
+        setLastCompletedSku(msg.data.sku)
+      }
+    }
+  }, [])
+
+  useWebSocket(campaignId, handleWsMessage)
 
   // ── Polling ────────────────────────────────────────────────────────────────
   const stopPolling = useCallback(() => {
@@ -371,6 +403,22 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
         setHasEverSynced(true)
         if (lastActionRef.current === 'quick_price') {
           showToast(`Prices updated for ${s.processed} SKUs. Images untouched.`, 'success')
+        } else if (lastActionRef.current === 'full') {
+          const k = preservedCountRef.current
+          showToast(
+            k > 0
+              ? `Synced ${s.processed} products. ${k} images preserved (manual overrides).`
+              : `Synced ${s.processed} products.`,
+            'success',
+          )
+        } else {
+          // import scrape (Update List)
+          const m = rescrapedCountRef.current
+          const k = preservedCountRef.current
+          const parts = [`Updated ${s.processed} products.`]
+          if (m > 0) parts.push(`${m} images re-scraped,`)
+          if (k > 0) parts.push(`${k} preserved (manual overrides).`)
+          showToast(parts.join(' '), 'success')
         }
         lastActionRef.current = null
         onSyncComplete?.()
@@ -452,6 +500,10 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   const handleConfirmFullSync = async () => {
     setShowConfirmModal(false)
     lastActionRef.current = 'full'
+    preservedCountRef.current = 0
+    rescrapedCountRef.current = 0
+    setWsProgress({ done: 0, total: 0 })
+    setLastCompletedSku(undefined)
     setSyncPhase('running')
     setSyncStatus({ status: 'queued', total: 0, processed: 0, failed: 0 })
     try {
@@ -487,7 +539,11 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
       await importSheetCommit(campaignId)
       setImportDiff(null)
       setHasEverSynced(true)
-      showToast('Update applied.', 'success')
+      lastActionRef.current = null  // import — toast handled by handleSyncStatusUpdate
+      preservedCountRef.current = 0
+      rescrapedCountRef.current = 0
+      setSyncPhase('running')
+      setSyncStatus({ status: 'queued', total: 0, processed: 0, failed: 0 })
       startPolling()
     } catch {
       showToast('Apply failed. Please try again.', 'error')
@@ -499,6 +555,10 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   const handleQuickPriceUpdate = async () => {
     setKebabOpen(false)
     lastActionRef.current = 'quick_price'
+    preservedCountRef.current = 0
+    rescrapedCountRef.current = 0
+    setWsProgress({ done: 0, total: 0 })
+    setLastCompletedSku(undefined)
     setSyncPhase('running')
     setSyncStatus({ status: 'queued', total: 0, processed: 0, failed: 0 })
     try {
@@ -533,17 +593,8 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
 
   // ── Render: sync progress / summary ───────────────────────────────────────
   const renderSyncSummary = () => {
-    if (!syncStatus) return null
-    if (syncPhase === 'running') {
-      return (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-small text-neutral-600">
-            Reading sheet… {syncStatus.processed}/{syncStatus.total} products
-          </p>
-          <ProgressBar value={syncStatus.processed} max={syncStatus.total} />
-        </div>
-      )
-    }
+    // Running state is handled by the RescrapeProgressCard inside renderActions
+    if (!syncStatus || syncPhase === 'running') return null
     if (syncPhase === 'success' && syncStatus.last_synced) {
       return (
         <p className="text-small text-success-600">
@@ -575,6 +626,19 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   const renderActions = () => {
     const busy = syncPhase === 'running'
     const isUploadSource = uploadResult?.ok === true
+
+    // Progress card replaces the action zone while a sync job is in flight
+    if (busy) {
+      const progressDone = wsProgress.done > 0 ? wsProgress.done : (syncStatus?.processed ?? 0)
+      const progressTotal = wsProgress.total > 0 ? wsProgress.total : (syncStatus?.total ?? 0)
+      return (
+        <RescrapeProgressCard
+          done={progressDone}
+          total={progressTotal}
+          lastSku={lastCompletedSku}
+        />
+      )
+    }
 
     if (importDiff) {
       return (
