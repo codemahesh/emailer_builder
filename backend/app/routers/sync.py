@@ -27,9 +27,11 @@ from app.models.campaign import Campaign
 from app.models.product import Product
 from app.models.sync_job import SyncJob, SyncJobStatus
 from app.models.user import User
+from app.models.sheet_version import SheetVersion
 from app.modules.sheet_verifier import verify_sheet
 from app.schemas.sync import (
     ProductRead,
+    SheetVersionRead,
     SyncJobResponse,
     SyncStatusResponse,
     VerifyRequest,
@@ -304,6 +306,23 @@ async def start_fast_sync(
 
     await session.commit()
     return SyncJobResponse(job_id=job_id, status="queued")
+
+
+@router.get("/{campaign_id}/sheet/versions", response_model=list[SheetVersionRead])
+async def list_sheet_versions(
+    campaign_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+) -> list[SheetVersion]:
+    """Return all sheet versions for a campaign, ordered newest-first."""
+    await _get_campaign_or_404(campaign_id, user, session)
+
+    result = await session.execute(
+        select(SheetVersion)
+        .where(SheetVersion.campaign_id == campaign_id)
+        .order_by(SheetVersion.version.desc())
+    )
+    return list(result.scalars().all())
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────

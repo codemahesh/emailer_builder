@@ -77,6 +77,22 @@ class ProductRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Sheet version ─────────────────────────────────────────────────────────────
+
+class SheetVersionRead(BaseModel):
+    id: uuid.UUID
+    campaign_id: uuid.UUID
+    version: int
+    source: str
+    source_ref: str
+    imported_at: datetime
+    imported_by: Optional[uuid.UUID] = None
+    row_count: int
+    checksum: str
+
+    model_config = {"from_attributes": True}
+
+
 # ── Replace image ─────────────────────────────────────────────────────────────
 
 class ReplaceImagePayload(BaseModel):

@@ -107,13 +107,13 @@ Every successful Full Sync writes an immutable `sheet_versions` row + per-row `s
 
 ### Acceptance criteria
 
-- [ ] Running Full Sync on a campaign with no prior versions creates `version=1`.
-- [ ] Re-running Full Sync with no upstream changes does NOT write a new version (checksum match).
-- [ ] Editing one row and re-running Full Sync writes `version=N+1`.
-- [ ] After 11 syncs with distinct checksums, only the 10 newest versions remain.
-- [ ] Soft-deleted rows excluded from canonical-row JSON (deletion affects diff but not historical row preservation).
-- [ ] `GET /sheet/versions` returns `[{id, version, source, source_ref, imported_at, imported_by, row_count, checksum}]` ordered newest-first.
-- [ ] Manual image overrides survive every Full Sync (no regression of existing behavior).
+- [x] Running Full Sync on a campaign with no prior versions creates `version=1`.
+- [x] Re-running Full Sync with no upstream changes does NOT write a new version (checksum match).
+- [x] Editing one row and re-running Full Sync writes `version=N+1`.
+- [x] After 11 syncs with distinct checksums, only the 10 newest versions remain.
+- [x] Soft-deleted rows excluded from canonical-row JSON (deletion affects diff but not historical row preservation).
+- [x] `GET /sheet/versions` returns `[{id, version, source, source_ref, imported_at, imported_by, row_count, checksum}]` ordered newest-first.
+- [x] Manual image overrides survive every Full Sync (no regression of existing behavior).
 
 ### Blocked by
 

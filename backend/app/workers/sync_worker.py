@@ -35,6 +35,7 @@ from app.models.product import Product, ProductPriority, Section
 from app.models.sync_job import SyncJob, SyncJobStatus
 from app.models.visual_brief import VisualBrief
 from app.modules.sheet_reader import read_sheet
+from app.modules.sheet_version_store import prune_old_versions, write_version
 from app.modules.product_scraper import scrape_product
 from app.modules.image_quality_gate import check_image_quality, QualityVerdict
 from app.modules.image_processor import process_image, ProcessingConfig
@@ -519,6 +520,29 @@ async def run_full_sync(
             # Touch campaign.updated_at
             campaign.updated_at = datetime.now(timezone.utc)
 
+            # Write immutable sheet version snapshot (dedup via checksum)
+            sv = await write_version(
+                session,
+                campaign_id=uuid.UUID(cid),
+                rows=records,
+                source="link",
+                source_ref=sheet_url,
+            )
+            if sv.version == 1 or sv.row_count == len(records):
+                # new write
+                logger.info(
+                    "run_full_sync: wrote sheet_version v%d for campaign %s (checksum=%s)",
+                    sv.version,
+                    cid,
+                    sv.checksum[:12],
+                )
+            else:
+                logger.info(
+                    "run_full_sync: checksum match — skipped new version for campaign %s (v%d)",
+                    cid,
+                    sv.version,
+                )
+
             # Update SyncJob totals before final commit
             if job_id:
                 result_job = await session.execute(
@@ -532,6 +556,14 @@ async def run_full_sync(
 
             await session.flush()
             await session.commit()
+
+            # Prune old versions outside the main transaction (best-effort)
+            try:
+                async with async_session_maker() as prune_session:
+                    await prune_old_versions(prune_session, uuid.UUID(cid), keep=10)
+                    await prune_session.commit()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("run_full_sync: prune_old_versions failed (%s)", exc)
 
         except Exception as exc:  # noqa: BLE001
             await session.rollback()
