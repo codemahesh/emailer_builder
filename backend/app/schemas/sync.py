@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -75,6 +75,19 @@ class ProductRead(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ── Sheet preview ─────────────────────────────────────────────────────────────
+
+class SheetPreviewResponse(BaseModel):
+    version: int
+    fetched_at: str          # ISO datetime of the snapshot's imported_at
+    row_count: int           # total rows in this version (un-paginated)
+    headers: list[str]       # canonical column names derived from the data
+    rows: list[dict[str, Any]]  # decoded row dicts for the requested page
+    has_more: bool
+    offset: int
+    limit: int
 
 
 # ── Sheet version ─────────────────────────────────────────────────────────────
