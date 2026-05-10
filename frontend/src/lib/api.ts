@@ -381,12 +381,12 @@ export const toggleSectionLock = (
     .patch(`/campaigns/${campaignId}/sections/${sectionId}/lock`, { locked })
     .then((r) => r.data)
 
-// ─── Fast Sync ────────────────────────────────────────────────────────────────
+// ─── Quick Price Update ───────────────────────────────────────────────────────
 
-export const startFastSync = (
+export const startQuickPriceUpdate = (
   campaignId: string,
 ): Promise<{ job_id: string; status: string }> =>
-  api.post(`/campaigns/${campaignId}/sync/fast`).then((r) => r.data)
+  api.post(`/campaigns/${campaignId}/sheet/quick-price`).then((r) => r.data)
 
 // ─── Banners ──────────────────────────────────────────────────────────────────
 
