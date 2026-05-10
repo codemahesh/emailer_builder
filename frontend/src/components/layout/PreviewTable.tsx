@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react'
-import { getSheetPreview, type SheetPreviewResponse } from '../../lib/api'
+import { getSheetPreview, verifySheet, type SheetPreviewResponse } from '../../lib/api'
 
 interface PreviewTableProps {
   campaignId: string
+  sheetUrl?: string
+  isUploadSource?: boolean
+  onUpdateListFocus?: () => void
 }
 
 const PAGE_SIZE = 50
 
-export function PreviewTable({ campaignId }: PreviewTableProps) {
+type RefreshState = 'idle' | 'checking' | 'no_changes' | 'has_changes'
+
+export function PreviewTable({ campaignId, sheetUrl, isUploadSource, onUpdateListFocus }: PreviewTableProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<SheetPreviewResponse | null>(null)
   const [offset, setOffset] = useState(0)
   const [focusedRow, setFocusedRow] = useState<number>(-1)
+  const [refreshState, setRefreshState] = useState<RefreshState>('idle')
 
   const tbodyRef = useRef<HTMLTableSectionElement>(null)
   const fetchedRef = useRef(false)
@@ -44,6 +50,23 @@ export function PreviewTable({ campaignId }: PreviewTableProps) {
       fetchPage(0)
     }
   }, [open, fetchPage])
+
+  // Refresh probe: call /sheet/verify and compare row_count to snapshot
+  const handleRefresh = useCallback(async () => {
+    if (!sheetUrl || !data || isUploadSource) return
+    setRefreshState('checking')
+    try {
+      const result = await verifySheet(campaignId, sheetUrl)
+      if (result.ok) {
+        const hasChanges = result.row_count !== data.row_count
+        setRefreshState(hasChanges ? 'has_changes' : 'no_changes')
+      } else {
+        setRefreshState('idle')
+      }
+    } catch {
+      setRefreshState('idle')
+    }
+  }, [campaignId, sheetUrl, data, isUploadSource])
 
   // ── Keyboard navigation ──────────────────────────────────────────────────
   const handleKeyDown = useCallback(
@@ -84,7 +107,7 @@ export function PreviewTable({ campaignId }: PreviewTableProps) {
         type="button"
         aria-expanded={open}
         aria-controls="preview-table-region"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { setOpen((o) => !o); setRefreshState('idle') }}
         className="w-full flex items-center justify-between px-4 py-3 bg-neutral-50 hover:bg-neutral-100 transition-colors text-left"
       >
         <span className="flex items-center gap-2 text-small-strong text-neutral-700">
@@ -113,22 +136,51 @@ export function PreviewTable({ campaignId }: PreviewTableProps) {
       >
         {data && data.version > 0 ? (
           <>
-            {/* Snapshot caption */}
+            {/* Snapshot caption + refresh icon */}
             <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-neutral-100 text-small text-neutral-500">
-              <span>Snapshot from v{data.version} — refresh to check live.</span>
+              <span>
+                {refreshState === 'no_changes'
+                  ? 'No changes since last import.'
+                  : `Snapshot from v${data.version} — refresh to check live.`}
+              </span>
               <button
                 type="button"
-                disabled
-                title="Refresh probe coming in a future update"
-                className="text-neutral-300 cursor-not-allowed"
-                aria-label="Refresh snapshot (not yet available)"
+                disabled={refreshState === 'checking' || isUploadSource || !sheetUrl}
+                onClick={handleRefresh}
+                title={isUploadSource ? 'No live source for upload connections' : 'Check the source for updates'}
+                aria-label="Check the source for updates"
+                className={`flex-shrink-0 transition-colors ${
+                  refreshState === 'checking'
+                    ? 'text-neutral-400 animate-spin cursor-wait'
+                    : isUploadSource || !sheetUrl
+                    ? 'text-neutral-200 cursor-not-allowed'
+                    : 'text-neutral-400 hover:text-brand-primary cursor-pointer'
+                }`}
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                   <path d="M10 6A4 4 0 112 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   <path d="M10 3v3H7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
+
+            {/* "Updates available" inline banner */}
+            {refreshState === 'has_changes' && (
+              <div className="px-4 py-2 bg-info-50 border-b border-info-200 flex items-center gap-2 text-small text-info-700">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="flex-shrink-0" aria-hidden="true">
+                  <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M7 6v4M7 4.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <span>Updates available —{' '}</span>
+                <button
+                  type="button"
+                  onClick={() => { setRefreshState('idle'); onUpdateListFocus?.() }}
+                  className="font-semibold underline hover:no-underline"
+                >
+                  Update List
+                </button>
+              </div>
+            )}
 
             {data.rows.length === 0 ? (
               <p className="px-4 py-6 text-small text-neutral-400 text-center">No rows to preview.</p>
