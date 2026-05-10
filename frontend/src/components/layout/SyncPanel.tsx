@@ -673,6 +673,31 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
                 >
                   {verifyPhase.status === 'verifying' ? 'Verifying…' : 'Verify & Connect'}
                 </Button>
+
+                {/* Template download links */}
+                <div className="flex items-center gap-3 justify-center text-small text-neutral-400">
+                  <span>Need a template?</span>
+                  <a
+                    href="/static/sheet-template.xlsx"
+                    download="sheet-template.xlsx"
+                    className="flex items-center gap-1 text-neutral-500 hover:text-brand-primary transition-colors"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                      <path d="M6.5 1v7.5M3.5 6l3 3 3-3M1 10.5h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Excel
+                  </a>
+                  <a
+                    href="/static/sheet-template.csv"
+                    download="sheet-template.csv"
+                    className="flex items-center gap-1 text-neutral-500 hover:text-brand-primary transition-colors"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                      <path d="M6.5 1v7.5M3.5 6l3 3 3-3M1 10.5h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    CSV
+                  </a>
+                </div>
               </>
             )}
           </>
