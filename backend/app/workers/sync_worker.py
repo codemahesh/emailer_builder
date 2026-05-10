@@ -761,7 +761,8 @@ class WorkerSettings:
     """ARQ worker configuration — run with ``arq app.workers.sync_worker.WorkerSettings``."""
 
     from app.workers.fast_sync_worker import run_fast_sync
-    functions = [run_full_sync, run_fast_sync]
+    from app.workers.import_worker import run_import_scrape
+    functions = [run_full_sync, run_fast_sync, run_import_scrape]
     redis_settings = _parse_redis_url(settings.redis_url)
     max_jobs = 10
     job_timeout = 600  # 10 minutes per sync job

@@ -203,14 +203,14 @@ The day-to-day operation for Persona A. Pull sheet edits in seconds, show a diff
 
 ### Acceptance criteria
 
-- [ ] Editing a non-link field (e.g., price) for one row → preflight reports `updated=1, rescrape_count=0`; Apply writes a new version and does NOT enqueue any scrape.
-- [ ] Changing a `product_link` → `rescrape_count=1`; Apply enqueues exactly that product for scrape.
-- [ ] Removing a row from the sheet → preflight reports `removed=1`; Apply soft-deletes the matching `products` row (`deleted_at` set).
-- [ ] Empty diff renders no summary; toast appears instead.
-- [ ] URL normalization treats `https://example.com/p/1` and `https://example.com/p/1/` as the same link.
-- [ ] Cancel discards the diff; no version row is written.
-- [ ] Manual image overrides survive every Update List apply.
-- [ ] Concurrent Update List click while a sync job is in flight is blocked; existing job continues (UX I10).
+- [x] Editing a non-link field (e.g., price) for one row → preflight reports `updated=1, rescrape_count=0`; Apply writes a new version and does NOT enqueue any scrape.
+- [x] Changing a `product_link` → `rescrape_count=1`; Apply enqueues exactly that product for scrape.
+- [x] Removing a row from the sheet → preflight reports `removed=1`; Apply soft-deletes the matching `products` row (`deleted_at` set).
+- [x] Empty diff renders no summary; toast appears instead.
+- [x] URL normalization treats `https://example.com/p/1` and `https://example.com/p/1/` as the same link.
+- [x] Cancel discards the diff; no version row is written.
+- [x] Manual image overrides survive every Update List apply.
+- [x] Concurrent Update List click while a sync job is in flight is blocked; existing job continues (UX I10).
 
 ### Blocked by
 

@@ -14,7 +14,13 @@ import {
 import { showToast } from '../ui/Toast'
 import { PreviewTable } from './PreviewTable'
 import { UploadDropzone } from './UploadDropzone'
-import type { UploadResponse } from '../../lib/api'
+import { UpdateSummary } from './UpdateSummary'
+import {
+  importSheetPreflight,
+  importSheetCommit,
+  type UploadResponse,
+  type ImportPreflightResponse,
+} from '../../lib/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -324,6 +330,9 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [showFailureDrawer, setShowFailureDrawer] = useState(false)
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null)
+  const [importDiff, setImportDiff] = useState<ImportPreflightResponse | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [isLoadingDiff, setIsLoadingDiff] = useState(false)
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -437,6 +446,37 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
     }
   }
 
+  const handleUpdateList = async () => {
+    setIsLoadingDiff(true)
+    try {
+      const diff = await importSheetPreflight(campaignId)
+      if (!diff.has_changes) {
+        showToast('No changes detected.', 'info')
+      } else {
+        setImportDiff(diff)
+      }
+    } catch {
+      showToast('Could not check for updates. Please try again.', 'error')
+    } finally {
+      setIsLoadingDiff(false)
+    }
+  }
+
+  const handleApplyImport = async () => {
+    setIsImporting(true)
+    try {
+      await importSheetCommit(campaignId)
+      setImportDiff(null)
+      setHasEverSynced(true)
+      showToast('Update applied.', 'success')
+      startPolling()
+    } catch {
+      showToast('Apply failed. Please try again.', 'error')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   const handleFastSync = async () => {
     setSyncPhase('running')
     setSyncStatus({ status: 'queued', total: 0, processed: 0, failed: 0 })
@@ -512,6 +552,19 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   // ── Render: action buttons ─────────────────────────────────────────────────
   const renderActions = () => {
     const busy = syncPhase === 'running'
+    const isUploadSource = uploadResult?.ok === true
+
+    if (importDiff) {
+      return (
+        <UpdateSummary
+          diff={importDiff}
+          onApply={handleApplyImport}
+          onCancel={() => setImportDiff(null)}
+          isApplying={isImporting}
+        />
+      )
+    }
+
     return (
       <div className="flex flex-col gap-2">
         {/* Verify success helper — shown once before first sync */}
@@ -530,6 +583,19 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
         >
           Full Sync
         </Button>
+
+        {/* Update List — shown after first sync on Link source only */}
+        {hasEverSynced && !isUploadSource && (
+          <Button
+            variant="secondary"
+            fullWidth
+            disabled={busy || isLoadingDiff}
+            isLoading={isLoadingDiff}
+            onClick={handleUpdateList}
+          >
+            Update List
+          </Button>
+        )}
 
         {hasEverSynced && (
           <Button
