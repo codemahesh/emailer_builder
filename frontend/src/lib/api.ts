@@ -173,6 +173,31 @@ export const verifySheet = (
     .post(`/campaigns/${campaignId}/sheet/verify`, { sheet_url: sheetUrl })
     .then((r) => r.data)
 
+// ─── File Upload ─────────────────────────────────────────────────────────────
+
+export interface UploadResponse {
+  ok: boolean
+  error_code: 'INVALID_TYPE' | 'FILE_TOO_LARGE' | 'TOO_MANY_ROWS' | 'PARSE_ERROR' | 'EMPTY_SHEET' | 'MISSING_COLUMNS' | null
+  headers_found: string[]
+  missing_columns: string[]
+  row_count: number
+  version_id: string | null
+  imported_count: number
+}
+
+export const uploadSheetFile = (
+  campaignId: string,
+  file: File,
+  signal?: AbortSignal,
+): Promise<UploadResponse> => {
+  const form = new FormData()
+  form.append('file', file)
+  return api.post(`/campaigns/${campaignId}/sheet/upload`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    signal,
+  }).then((r) => r.data)
+}
+
 // ─── Sheet Preview ────────────────────────────────────────────────────────────
 
 export interface SheetPreviewResponse {

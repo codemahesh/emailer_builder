@@ -17,7 +17,7 @@ import logging
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,13 +28,16 @@ from app.models.product import Product
 from app.models.sync_job import SyncJob, SyncJobStatus
 from app.models.user import User
 from app.models.sheet_version import SheetVersion, SheetVersionRow
+from app.modules.file_parser import UploadParseError, detect_file_type, parse_bytes
 from app.modules.sheet_verifier import verify_sheet
+from app.modules.sheet_version_store import write_version
 from app.schemas.sync import (
     ProductRead,
     SheetPreviewResponse,
     SheetVersionRead,
     SyncJobResponse,
     SyncStatusResponse,
+    UploadResponse,
     VerifyRequest,
     VerifyResponse,
 )
@@ -68,6 +71,139 @@ async def _get_campaign_or_404(
             detail="Campaign not found",
         )
     return campaign
+
+
+_MAX_UPLOAD_BYTES = 5 * 1024 * 1024   # 5 MB
+
+
+@router.post("/{campaign_id}/sheet/upload", response_model=UploadResponse)
+async def upload_sheet_file(
+    campaign_id: uuid.UUID,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+) -> UploadResponse:
+    """
+    Parse an uploaded .xlsx or .csv file, validate columns, write a SheetVersion
+    and create/replace Products for this campaign.
+
+    Enforces:
+    - 5 MB file size cap (checked before full read)
+    - Allowed MIME types / extensions only (.xlsx, .csv)
+    - Max 10,000 data rows
+    - Required columns: sku, product_link (alias-aware via sheet_parser)
+    """
+    from app.models.product import Product, ProductPriority, Section
+    from app.modules.sheet_parser import CANONICAL_FIELDS
+
+    await _get_campaign_or_404(campaign_id, user, session)
+
+    filename = file.filename or ""
+    content_type = file.content_type or ""
+
+    # ── Detect file type (rejects unsupported extensions/mimes early) ─────────
+    try:
+        file_type = detect_file_type(filename, content_type)
+    except UploadParseError as exc:
+        return UploadResponse(ok=False, error_code=exc.error_code)
+
+    # ── Read up to MAX+1 bytes to enforce size cap ────────────────────────────
+    data = await file.read(_MAX_UPLOAD_BYTES + 1)
+    if len(data) > _MAX_UPLOAD_BYTES:
+        return UploadResponse(ok=False, error_code="FILE_TOO_LARGE")
+
+    # ── Parse + validate ──────────────────────────────────────────────────────
+    try:
+        records = parse_bytes(data, file_type)
+    except UploadParseError as exc:
+        return UploadResponse(
+            ok=False,
+            error_code=exc.error_code,
+            missing_columns=(
+                [c for c in ["sku", "product_link"] if c in exc.detail]
+                if exc.error_code == "MISSING_COLUMNS"
+                else []
+            ),
+        )
+
+    # Derive headers_found from canonical fields present in the first record
+    headers_found = [k for k in (records[0].keys() if records else []) if k in CANONICAL_FIELDS]
+
+    # ── DB: write version + upsert products ───────────────────────────────────
+    try:
+        from sqlalchemy import delete as sa_delete
+
+        # Write the immutable snapshot first
+        sv = await write_version(
+            session,
+            campaign_id=campaign_id,
+            rows=records,
+            source="upload",
+            source_ref=filename,
+            imported_by=user.id,
+        )
+
+        # Hard-delete existing products for a clean reimport
+        await session.execute(
+            sa_delete(Product).where(Product.campaign_id == campaign_id)
+        )
+        await session.execute(
+            sa_delete(Section).where(Section.campaign_id == campaign_id)
+        )
+        await session.flush()
+
+        # Insert products grouped by section
+        sections_seen: dict[str, Section] = {}
+        section_pos = 0
+
+        for idx, record in enumerate(records):
+            title = record.get("section_title", "Default") or "Default"
+
+            if title not in sections_seen:
+                sec = Section(campaign_id=campaign_id, title=title, position=section_pos)
+                session.add(sec)
+                await session.flush()
+                sections_seen[title] = sec
+                section_pos += 1
+
+            raw_prio = record.get("priority", "medium") or "medium"
+            try:
+                prio = ProductPriority(raw_prio.lower())
+            except ValueError:
+                prio = ProductPriority.medium
+
+            session.add(
+                Product(
+                    campaign_id=campaign_id,
+                    section_id=sections_seen[title].id,
+                    sku=record.get("sku", "") or "",
+                    product_link=record.get("product_link", "") or "",
+                    priority=prio,
+                    raw_price=record.get("raw_price") or None,
+                    utm_campaign=record.get("utm_campaign") or None,
+                    button_name=record.get("button_name") or None,
+                    position=idx,
+                    scrape_failed=True,   # no scraping for upload path yet
+                )
+            )
+
+        await session.commit()
+
+    except Exception as exc:
+        await session.rollback()
+        logger.exception("upload_sheet_file: DB write failed for campaign %s", campaign_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not save uploaded sheet.",
+        ) from exc
+
+    return UploadResponse(
+        ok=True,
+        headers_found=headers_found,
+        row_count=len(records),
+        version_id=str(sv.id),
+        imported_count=len(records),
+    )
 
 
 @router.post("/{campaign_id}/sheet/verify", response_model=VerifyResponse)

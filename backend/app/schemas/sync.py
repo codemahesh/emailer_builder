@@ -77,6 +77,18 @@ class ProductRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── File upload ──────────────────────────────────────────────────────────────
+
+class UploadResponse(BaseModel):
+    ok: bool
+    error_code: Optional[str] = None   # same codes as VerifyResponse + INVALID_TYPE | PARSE_ERROR | TOO_MANY_ROWS
+    headers_found: list[str] = []
+    missing_columns: list[str] = []
+    row_count: int = 0
+    version_id: Optional[str] = None   # UUID of the SheetVersion written on success
+    imported_count: int = 0
+
+
 # ── Sheet preview ─────────────────────────────────────────────────────────────
 
 class SheetPreviewResponse(BaseModel):
