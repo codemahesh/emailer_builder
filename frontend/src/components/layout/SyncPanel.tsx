@@ -12,6 +12,7 @@ import {
   type VerifyResponse,
 } from '../../lib/api'
 import { showToast } from '../ui/Toast'
+import { PreviewTable } from './PreviewTable'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -597,6 +598,7 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
                 />
                 {renderSyncSummary()}
                 {renderActions()}
+                <PreviewTable campaignId={campaignId} />
               </>
             ) : isConnected && verifyPhase.status === 'idle' ? (
               /* Campaign already has a saved URL but user hasn't re-verified in this session */
@@ -617,6 +619,7 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
                 <ServiceAccountRow email={serviceAccountEmail} />
                 {renderSyncSummary()}
                 {renderActions()}
+                <PreviewTable campaignId={campaignId} />
               </>
             ) : (
               /* Unconnected / verify flow */

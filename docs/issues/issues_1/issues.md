@@ -137,13 +137,13 @@ Read-only preview of the latest imported version, served from `sheet_version_row
 
 ### Acceptance criteria
 
-- [ ] `/preview` p95 < 500 ms (PRD §5.2 / §8.5).
-- [ ] Columns rendered come from the `headers` field in the response — adding a new column to a future import surfaces without code changes.
-- [ ] First 50 rows render; pagination works and updates `offset`.
-- [ ] Disclosure is collapsed by default (UX D2).
-- [ ] Soft-deleted rows do not appear.
-- [ ] Preview reflects the snapshot, not live data — editing the source sheet does not mutate the preview without an Update List or Full Sync.
-- [ ] Keyboard navigation and `<table>`/`<thead>`/`<tbody>` semantics meet UX §B-6 a11y.
+- [x] `/preview` p95 < 500 ms (PRD §5.2 / §8.5).
+- [x] Columns rendered come from the `headers` field in the response — adding a new column to a future import surfaces without code changes.
+- [x] First 50 rows render; pagination works and updates `offset`.
+- [x] Disclosure is collapsed by default (UX D2).
+- [x] Soft-deleted rows do not appear.
+- [x] Preview reflects the snapshot, not live data — editing the source sheet does not mutate the preview without an Update List or Full Sync.
+- [x] Keyboard navigation and `<table>`/`<thead>`/`<tbody>` semantics meet UX §B-6 a11y.
 
 ### Blocked by
 

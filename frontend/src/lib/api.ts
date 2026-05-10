@@ -173,6 +173,29 @@ export const verifySheet = (
     .post(`/campaigns/${campaignId}/sheet/verify`, { sheet_url: sheetUrl })
     .then((r) => r.data)
 
+// ─── Sheet Preview ────────────────────────────────────────────────────────────
+
+export interface SheetPreviewResponse {
+  version: number
+  fetched_at: string
+  row_count: number
+  headers: string[]
+  rows: Record<string, string>[]
+  has_more: boolean
+  offset: number
+  limit: number
+}
+
+export const getSheetPreview = (
+  campaignId: string,
+  params: { version?: string; limit?: number; offset?: number } = {},
+): Promise<SheetPreviewResponse> =>
+  api
+    .get(`/campaigns/${campaignId}/sheet/preview`, {
+      params: { version: params.version ?? 'latest', limit: params.limit ?? 50, offset: params.offset ?? 0 },
+    })
+    .then((r) => r.data)
+
 export const startFullSync = (
   campaignId: string,
 ): Promise<{ job_id: string; status: string }> =>

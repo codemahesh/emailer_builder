@@ -17,7 +17,7 @@ import logging
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,10 +27,11 @@ from app.models.campaign import Campaign
 from app.models.product import Product
 from app.models.sync_job import SyncJob, SyncJobStatus
 from app.models.user import User
-from app.models.sheet_version import SheetVersion
+from app.models.sheet_version import SheetVersion, SheetVersionRow
 from app.modules.sheet_verifier import verify_sheet
 from app.schemas.sync import (
     ProductRead,
+    SheetPreviewResponse,
     SheetVersionRead,
     SyncJobResponse,
     SyncStatusResponse,
@@ -306,6 +307,112 @@ async def start_fast_sync(
 
     await session.commit()
     return SyncJobResponse(job_id=job_id, status="queued")
+
+
+@router.get("/{campaign_id}/sheet/preview", response_model=SheetPreviewResponse)
+async def get_sheet_preview(
+    campaign_id: uuid.UUID,
+    version: str = Query("latest"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+) -> SheetPreviewResponse:
+    """
+    Return a paginated preview of the latest (or specific) sheet version snapshot.
+
+    Data is served from ``sheet_version_rows`` — no live Sheets API call.
+    Soft-deleted products are excluded by filtering on ``product.deleted_at IS NULL``.
+    """
+    await _get_campaign_or_404(campaign_id, user, session)
+
+    # ── Resolve the requested version ─────────────────────────────────────────
+    if version == "latest":
+        sv_result = await session.execute(
+            select(SheetVersion)
+            .where(SheetVersion.campaign_id == campaign_id)
+            .order_by(SheetVersion.version.desc())
+            .limit(1)
+        )
+        sv: Optional[SheetVersion] = sv_result.scalar_one_or_none()
+    else:
+        try:
+            ver_int = int(version)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="version must be 'latest' or an integer",
+            )
+        sv_result = await session.execute(
+            select(SheetVersion).where(
+                SheetVersion.campaign_id == campaign_id,
+                SheetVersion.version == ver_int,
+            )
+        )
+        sv = sv_result.scalar_one_or_none()
+
+    if sv is None:
+        return SheetPreviewResponse(
+            version=0,
+            fetched_at="",
+            row_count=0,
+            headers=[],
+            rows=[],
+            has_more=False,
+            offset=offset,
+            limit=limit,
+        )
+
+    # ── Collect active (non-soft-deleted) SKUs for filtering ──────────────────
+    deleted_skus_result = await session.execute(
+        select(Product.sku).where(
+            Product.campaign_id == campaign_id,
+            Product.deleted_at.is_not(None),
+        )
+    )
+    deleted_skus: set[str] = {r for (r,) in deleted_skus_result.all() if r}
+
+    # ── Fetch paginated rows ───────────────────────────────────────────────────
+    all_rows_result = await session.execute(
+        select(SheetVersionRow)
+        .where(SheetVersionRow.version_id == sv.id)
+        .order_by(SheetVersionRow.position.asc())
+    )
+    all_rows = all_rows_result.scalars().all()
+
+    # Decode and filter soft-deleted SKUs
+    decoded: list[dict] = []
+    for row in all_rows:
+        try:
+            data = json.loads(row.data_json)
+        except Exception:
+            data = {}
+        if deleted_skus and data.get("sku", "") in deleted_skus:
+            continue
+        decoded.append(data)
+
+    # Derive headers from the union of all row keys, preserving a stable order
+    seen_keys: list[str] = []
+    seen_set: set[str] = set()
+    for d in decoded:
+        for k in d:
+            if k not in seen_set:
+                seen_keys.append(k)
+                seen_set.add(k)
+
+    page = decoded[offset: offset + limit]
+    has_more = (offset + limit) < len(decoded)
+
+    return SheetPreviewResponse(
+        version=sv.version,
+        fetched_at=sv.imported_at.isoformat(),
+        row_count=len(decoded),
+        headers=seen_keys,
+        rows=page,
+        has_more=has_more,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @router.get("/{campaign_id}/sheet/versions", response_model=list[SheetVersionRead])
