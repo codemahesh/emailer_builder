@@ -236,12 +236,12 @@ Replace today's Full/Fast Sync pair with the three-operation hierarchy from PRD 
 
 ### Acceptance criteria
 
-- [ ] First-time campaign shows only Full Sync; Update List and kebab appear after the first successful Full Sync.
-- [ ] Exactly one filled primary button visible in the action zone at any moment (UX C2).
-- [ ] Quick price update item appears under the kebab and is hidden until at least one Full Sync has succeeded (UX D6).
-- [ ] Full Sync confirm modal copy matches UX §B-3 verbatim.
-- [ ] Quick price update success toast: `Prices updated for {n} SKUs. Images untouched.`
-- [ ] Quick price update never touches images (regression test against `ManualOverride` and product image URLs).
+- [x] First-time campaign shows only Full Sync; Update List and kebab appear after the first successful Full Sync.
+- [x] Exactly one filled primary button visible in the action zone at any moment (UX C2).
+- [x] Quick price update item appears under the kebab and is hidden until at least one Full Sync has succeeded (UX D6).
+- [x] Full Sync confirm modal copy matches UX §B-3 verbatim.
+- [x] Quick price update success toast: `Prices updated for {n} SKUs. Images untouched.`
+- [x] Quick price update never touches images (regression test against `ManualOverride` and product image URLs).
 
 ### Blocked by
 

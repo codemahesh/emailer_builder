@@ -648,19 +648,19 @@ async def list_products(
 
 
 @router.post(
-    "/{campaign_id}/sync/fast",
+    "/{campaign_id}/sheet/quick-price",
     response_model=SyncJobResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
-async def start_fast_sync(
+async def start_quick_price_update(
     campaign_id: uuid.UUID,
     request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ) -> SyncJobResponse:
     """
-    Enqueue a fast sync — updates only price + UTM fields from the sheet.
-    Requires at least one prior full sync to exist.
+    Enqueue a quick price update — updates only price + UTM fields from the sheet.
+    Requires at least one prior full sync to exist. Never touches images.
     """
     campaign = await _get_campaign_or_404(campaign_id, user, session)
 
@@ -672,7 +672,7 @@ async def start_fast_sync(
 
     job = SyncJob(
         campaign_id=campaign_id,
-        job_type="fast",
+        job_type="quick_price",
         status=SyncJobStatus.queued,
     )
     session.add(job)
@@ -688,13 +688,13 @@ async def start_fast_sync(
                 "run_fast_sync",
                 campaign_id=str(campaign_id),
                 job_id=job_id,
-                _job_id=f"fast-{job_id}",
+                _job_id=f"quick-price-{job_id}",
             )
-            logger.info("start_fast_sync: enqueued job %s for campaign %s", job_id, campaign_id)
+            logger.info("start_quick_price_update: enqueued job %s for campaign %s", job_id, campaign_id)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("start_fast_sync: ARQ enqueue failed (%s)", exc)
+            logger.warning("start_quick_price_update: ARQ enqueue failed (%s)", exc)
     else:
-        logger.warning("start_fast_sync: arq_pool not available — job %s not enqueued", job_id)
+        logger.warning("start_quick_price_update: arq_pool not available — job %s not enqueued", job_id)
 
     await session.commit()
     return SyncJobResponse(job_id=job_id, status="queued")

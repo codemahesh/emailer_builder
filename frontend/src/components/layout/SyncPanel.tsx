@@ -3,7 +3,7 @@ import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import {
   startFullSync,
-  startFastSync,
+  startQuickPriceUpdate,
   getSyncStatus,
   updateCampaign,
   verifySheet,
@@ -333,8 +333,22 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   const [importDiff, setImportDiff] = useState<ImportPreflightResponse | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const [isLoadingDiff, setIsLoadingDiff] = useState(false)
+  const [kebabOpen, setKebabOpen] = useState(false)
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const lastActionRef = useRef<'full' | 'quick_price' | null>(null)
+  const kebabRef = useRef<HTMLDivElement>(null)
+
+  // Close kebab on outside click
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (kebabRef.current && !kebabRef.current.contains(e.target as Node)) {
+        setKebabOpen(false)
+      }
+    }
+    if (kebabOpen) document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [kebabOpen])
 
   // ── Polling ────────────────────────────────────────────────────────────────
   const stopPolling = useCallback(() => {
@@ -355,6 +369,10 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
       if (s.status === 'completed') {
         setSyncPhase('success')
         setHasEverSynced(true)
+        if (lastActionRef.current === 'quick_price') {
+          showToast(`Prices updated for ${s.processed} SKUs. Images untouched.`, 'success')
+        }
+        lastActionRef.current = null
         onSyncComplete?.()
       } else if (s.status === 'partial') {
         setSyncPhase('partial')
@@ -433,6 +451,7 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   // ── Sync actions ───────────────────────────────────────────────────────────
   const handleConfirmFullSync = async () => {
     setShowConfirmModal(false)
+    lastActionRef.current = 'full'
     setSyncPhase('running')
     setSyncStatus({ status: 'queued', total: 0, processed: 0, failed: 0 })
     try {
@@ -477,15 +496,18 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
     }
   }
 
-  const handleFastSync = async () => {
+  const handleQuickPriceUpdate = async () => {
+    setKebabOpen(false)
+    lastActionRef.current = 'quick_price'
     setSyncPhase('running')
     setSyncStatus({ status: 'queued', total: 0, processed: 0, failed: 0 })
     try {
-      await startFastSync(campaignId)
+      await startQuickPriceUpdate(campaignId)
       startPolling()
     } catch {
-      showToast('Failed to start fast sync', 'error')
+      showToast('Quick price update failed. Please try again.', 'error')
       setSyncPhase('idle')
+      lastActionRef.current = null
     }
   }
 
@@ -565,48 +587,94 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
       )
     }
 
+    // ── Pre-first-sync: only Full Sync (filled primary) ───────────────────────
+    if (!hasEverSynced) {
+      return (
+        <div className="flex flex-col gap-2">
+          {verifyPhase.status === 'verified' && (
+            <p className="text-small text-neutral-500">
+              Verified — nothing imported yet. Click Full Sync to begin.
+            </p>
+          )}
+          <Button
+            variant="primary"
+            fullWidth
+            disabled={busy}
+            isLoading={busy}
+            onClick={() => setShowConfirmModal(true)}
+          >
+            <span className="flex flex-col items-center gap-0.5">
+              <span>Full Sync</span>
+              <span className="text-xs font-normal opacity-75">Re-scrape everything</span>
+            </span>
+          </Button>
+        </div>
+      )
+    }
+
+    // ── Post-first-sync: Update List (primary) + Full Sync (secondary) + kebab ─
     return (
       <div className="flex flex-col gap-2">
-        {/* Verify success helper — shown once before first sync */}
-        {!hasEverSynced && verifyPhase.status === 'verified' && (
-          <p className="text-small text-neutral-500">
-            Verified — nothing imported yet. Click Full Sync to begin.
-          </p>
-        )}
-
-        <Button
-          variant="primary"
-          fullWidth
-          disabled={busy}
-          isLoading={busy}
-          onClick={() => setShowConfirmModal(true)}
-        >
-          Full Sync
-        </Button>
-
-        {/* Update List — shown after first sync on Link source only */}
-        {hasEverSynced && !isUploadSource && (
+        {/* Update List — filled primary, hidden for upload source */}
+        {!isUploadSource && (
           <Button
-            variant="secondary"
+            variant="primary"
             fullWidth
             disabled={busy || isLoadingDiff}
             isLoading={isLoadingDiff}
             onClick={handleUpdateList}
           >
-            Update List
+            <span className="flex flex-col items-center gap-0.5">
+              <span>Update List</span>
+              <span className="text-xs font-normal opacity-75">Pull sheet edits</span>
+            </span>
           </Button>
         )}
 
-        {hasEverSynced && (
-          <Button
-            variant="secondary"
-            fullWidth
+        {/* Full Sync — outlined secondary */}
+        <Button
+          variant="secondary"
+          fullWidth
+          disabled={busy}
+          onClick={() => setShowConfirmModal(true)}
+        >
+          <span className="flex flex-col items-center gap-0.5">
+            <span>Full Sync</span>
+            <span className="text-xs font-normal opacity-75">Re-scrape everything</span>
+          </span>
+        </Button>
+
+        {/* Kebab overflow menu — Quick price update */}
+        <div className="relative flex justify-end" ref={kebabRef}>
+          <button
+            type="button"
+            aria-label="More sync actions"
+            aria-expanded={kebabOpen}
+            onClick={() => setKebabOpen((o) => !o)}
             disabled={busy}
-            onClick={handleFastSync}
+            className="flex items-center justify-center w-8 h-8 rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            Fast Sync
-          </Button>
-        )}
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <circle cx="3" cy="8" r="1.5" />
+              <circle cx="8" cy="8" r="1.5" />
+              <circle cx="13" cy="8" r="1.5" />
+            </svg>
+          </button>
+
+          {kebabOpen && (
+            <div className="absolute right-0 top-full mt-1 z-10 w-64 rounded-lg border border-neutral-200 bg-white shadow-lg py-1">
+              <button
+                type="button"
+                onClick={handleQuickPriceUpdate}
+                disabled={busy}
+                className="w-full text-left px-4 py-2.5 flex flex-col gap-0.5 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <span className="text-small-strong text-neutral-800">Quick price update</span>
+                <span className="text-xs text-neutral-500">Prices & UTM only. Existing SKUs only. Skips images.</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     )
   }
