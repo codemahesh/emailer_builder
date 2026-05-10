@@ -682,6 +682,7 @@ export interface ImageProcessingProgress {
   type: 'image_processed' | 'sync_progress' | 'banner_ready'
   data: {
     product_id?: string
+    sku?: string
     url?: string
     verdict?: string
     reason?: string
@@ -689,7 +690,10 @@ export interface ImageProcessingProgress {
     total?: number
     processed?: number
     failed?: number
+    preserved_count?: number
+    rescrape_count?: number
     cached?: boolean
+    preserved?: boolean
     width?: number
     height?: number
   }

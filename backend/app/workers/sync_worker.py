@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import async_session_maker
 from app.models.campaign import Campaign
+from app.models.manual_override import ManualOverride
 from app.models.product import Product, ProductPriority, Section
 from app.models.sync_job import SyncJob, SyncJobStatus
 from app.models.visual_brief import VisualBrief
@@ -137,6 +138,7 @@ async def _process_product_image(
     product: Product,
     campaign_id: str,
     sku_cache,
+    overridden_ids: set[str] | None = None,
 ) -> str:
     """
     Download, quality-check, process, and cache the image for *product*.
@@ -150,6 +152,22 @@ async def _process_product_image(
     sku = product.sku or ""
     scraped_url = product.scraped_image_url or ""
 
+    # ── ManualOverride: preserve existing processed_image_url ─────────────────
+    if overridden_ids is not None and pid in overridden_ids:
+        existing = product.processed_image_url or scraped_url
+        await gateway.send_progress(
+            campaign_id,
+            "image_processed",
+            {
+                "product_id": pid,
+                "sku": sku,
+                "url": existing,
+                "verdict": QualityVerdict.PASS.value,
+                "preserved": True,
+            },
+        )
+        return existing
+
     # ── SKU cache hit ─────────────────────────────────────────────────────────
     if sku_cache is not None and sku:
         cached_url = await sku_cache.get(sku)
@@ -160,6 +178,7 @@ async def _process_product_image(
                 "image_processed",
                 {
                     "product_id": pid,
+                    "sku": sku,
                     "url": cached_url,
                     "verdict": QualityVerdict.PASS.value,
                     "cached": True,
@@ -174,6 +193,7 @@ async def _process_product_image(
             "image_processed",
             {
                 "product_id": pid,
+                "sku": sku,
                 "url": "/static/coming-soon.svg",
                 "verdict": QualityVerdict.FAIL.value,
                 "reason": "No image URL available",
@@ -188,6 +208,7 @@ async def _process_product_image(
             "image_processed",
             {
                 "product_id": pid,
+                "sku": sku,
                 "url": "/static/coming-soon.svg",
                 "verdict": QualityVerdict.FAIL.value,
                 "reason": "Failed to download image",
@@ -207,6 +228,7 @@ async def _process_product_image(
             "image_processed",
             {
                 "product_id": pid,
+                "sku": sku,
                 "url": "/static/coming-soon.svg",
                 "verdict": QualityVerdict.FAIL.value,
                 "reason": quality.reason,
@@ -253,6 +275,7 @@ async def _process_product_image(
         "image_processed",
         {
             "product_id": pid,
+            "sku": sku,
             "url": processed_url,
             "verdict": quality.verdict.value,
             "reason": quality.reason,
@@ -597,6 +620,20 @@ async def run_full_sync(
     # ── 3. Scrape + quality gate + image processing ────────────────────────────
     sku_cache = await _get_sku_cache()
     scrape_failed_count = 0
+    preserved_count = 0
+
+    # Collect ManualOverride product IDs so we can preserve processed_image_url
+    async with async_session_maker() as mo_session:
+        try:
+            mo_result = await mo_session.execute(
+                select(ManualOverride.target_id).where(
+                    ManualOverride.campaign_id == uuid.UUID(cid),
+                    ManualOverride.target_type == "product_image",
+                )
+            )
+            overridden_ids: set[str] = {str(r) for (r,) in mo_result.all() if r}
+        except Exception:  # noqa: BLE001
+            overridden_ids = set()
 
     async with async_session_maker() as scrape_session:
         for scrape_idx, pid in enumerate(product_ids):
@@ -630,9 +667,12 @@ async def run_full_sync(
 
                 # ── Image quality gate + processing pipeline ──────────────────
                 processed_url = await _process_product_image(
-                    product_row, cid, sku_cache
+                    product_row, cid, sku_cache, overridden_ids
                 )
-                product_row.processed_image_url = processed_url
+                if pid not in overridden_ids:
+                    product_row.processed_image_url = processed_url
+                else:
+                    preserved_count += 1
                 await scrape_session.flush()
 
                 # ── Emit overall sync progress ────────────────────────────────
@@ -701,6 +741,7 @@ async def run_full_sync(
             "processed": imported,
             "total": total,
             "failed": failed,
+            "preserved_count": preserved_count,
         },
     )
 
