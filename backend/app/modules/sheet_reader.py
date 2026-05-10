@@ -19,6 +19,7 @@ from typing import Optional, TypedDict
 
 from app.config import settings
 from app.modules.price_formatter import format_price
+from app.modules.sheet_parser import coerce_priority, normalize_headers, row_to_canonical_dict
 from app.modules.utm_builder import build_utm
 
 
@@ -39,29 +40,6 @@ class ProductRecord(TypedDict, total=False):
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 _SPREADSHEET_ID_RE = re.compile(r"/spreadsheets/d/([a-zA-Z0-9_-]+)")
-_VALID_PRIORITIES = {"high", "medium", "low"}
-
-_COLUMN_ALIASES: dict[str, str] = {
-    "section": "section_title",
-    "section title": "section_title",
-    "section_title": "section_title",
-    "sku": "sku",
-    "product_link": "product_link",
-    "product link": "product_link",
-    "url": "product_link",
-    "link": "product_link",
-    "priority": "priority",
-    "raw_price": "raw_price",
-    "price": "raw_price",
-    "raw price": "raw_price",
-    "utm_campaign": "utm_campaign",
-    "utm campaign": "utm_campaign",
-    "campaign": "utm_campaign",
-    "button_name": "button_name",
-    "button name": "button_name",
-    "button": "button_name",
-    "cta": "button_name",
-}
 
 
 def _extract_spreadsheet_id(sheet_url: str) -> str:
@@ -74,20 +52,15 @@ def _extract_spreadsheet_id(sheet_url: str) -> str:
     return match.group(1)
 
 
-def _normalise_header(raw: str) -> str:
-    return _COLUMN_ALIASES.get(raw.strip().lower(), raw.strip().lower())
-
-
 def _build_product_record(
     row_dict: dict[str, str],
 ) -> ProductRecord:
-    """Convert a raw header→value dict into a typed ``ProductRecord``."""
+    """Convert a canonical header→value dict into a typed ``ProductRecord``."""
 
     section_title = row_dict.get("section_title", "").strip() or "Default"
     sku = row_dict.get("sku", "").strip()
     product_link = row_dict.get("product_link", "").strip()
-    raw_priority = row_dict.get("priority", "medium").strip().lower()
-    priority = raw_priority if raw_priority in _VALID_PRIORITIES else "medium"
+    priority = coerce_priority(row_dict.get("priority"))
     raw_price = row_dict.get("raw_price", "").strip() or None
     formatted_price = format_price(raw_price) if raw_price else None
     utm_campaign = row_dict.get("utm_campaign", "").strip() or None
@@ -175,19 +148,13 @@ def read_sheet(sheet_url: str, credentials_json: dict) -> list[ProductRecord]:
     if not raw_rows:
         return []
 
-    # First row is headers
-    header_row = [_normalise_header(str(cell)) for cell in raw_rows[0]]
+    normalized = normalize_headers([str(cell) for cell in raw_rows[0]])
+    canonical_headers = normalized["headers"]
 
     records: list[ProductRecord] = []
     for row in raw_rows[1:]:
-        # Pad short rows with empty strings
-        padded = list(row) + [""] * (len(header_row) - len(row))
-        row_dict: dict[str, str] = {
-            header_row[i]: str(padded[i]) if padded[i] is not None else ""
-            for i in range(len(header_row))
-        }
+        row_dict = row_to_canonical_dict(canonical_headers, row)
 
-        # Skip entirely empty rows
         sku = row_dict.get("sku", "").strip()
         product_link = row_dict.get("product_link", "").strip()
         if not sku and not product_link:

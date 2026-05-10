@@ -205,7 +205,7 @@ async def list_products(
     await _get_campaign_or_404(campaign_id, user, session)
 
     result = await session.execute(
-        select(Product)
+        Product.active()
         .where(Product.campaign_id == campaign_id)
         .order_by(Product.position.asc())
     )

@@ -24,6 +24,7 @@ from app.models.user_preference import UserPreference  # noqa: F401
 from app.models.review_token import ReviewToken  # noqa: F401
 from app.models.comment import Comment  # noqa: F401
 from app.models.approval_event import ApprovalEvent  # noqa: F401
+from app.models.sheet_version import SheetVersion, SheetVersionRow  # noqa: F401
 from app.config import settings
 
 config = context.config

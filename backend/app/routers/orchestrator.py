@@ -87,7 +87,7 @@ async def _load_products(
     session: AsyncSession,
 ) -> list[Product]:
     result = await session.execute(
-        select(Product)
+        Product.active()
         .where(Product.campaign_id == campaign_id)
         .order_by(Product.position)
     )

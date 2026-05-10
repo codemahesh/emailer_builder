@@ -192,7 +192,7 @@ async def duplicate_campaign(
 
     # Copy products
     products_result = await session.execute(
-        select(Product).where(Product.campaign_id == campaign_id)
+        Product.active().where(Product.campaign_id == campaign_id)
     )
     old_products = products_result.scalars().all()
     for old_product in old_products:

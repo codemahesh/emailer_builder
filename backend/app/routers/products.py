@@ -72,7 +72,7 @@ async def _get_product_or_404(
     session: AsyncSession,
 ) -> Product:
     result = await session.execute(
-        select(Product).where(
+        Product.active().where(
             Product.id == product_id,
             Product.campaign_id == campaign_id,
         )

@@ -21,12 +21,12 @@ Lay the data-layer and parsing foundation that all later slices depend on. No us
 
 ### Acceptance criteria
 
-- [ ] Alembic (or project's migration tool) migration applies cleanly forward and reverses cleanly.
-- [ ] `sheet_parser.normalize_headers(raw_headers) -> dict` accepts every alias in the existing `sheet_reader.py` aliases table; round-trip unit tests cover all aliases.
-- [ ] Existing Full Sync still works end-to-end against a real Google Sheet (no regression).
-- [ ] `Product.active` helper used by every reader that displayed products to end-users; tests confirm soft-deleted rows are hidden.
-- [ ] `sheet_version_store.compute_checksum` is deterministic and order-independent over rows; covered by unit tests.
-- [ ] `prune_old_versions` keeps the newest 10 by `imported_at`, deletes the rest in a single transaction; covered by an integration test.
+- [x] Alembic (or project's migration tool) migration applies cleanly forward and reverses cleanly.
+- [x] `sheet_parser.normalize_headers(raw_headers) -> dict` accepts every alias in the existing `sheet_reader.py` aliases table; round-trip unit tests cover all aliases.
+- [x] Existing Full Sync still works end-to-end against a real Google Sheet (no regression).
+- [x] `Product.active` helper used by every reader that displayed products to end-users; tests confirm soft-deleted rows are hidden.
+- [x] `sheet_version_store.compute_checksum` is deterministic and order-independent over rows; covered by unit tests.
+- [x] `prune_old_versions` keeps the newest 10 by `imported_at`, deletes the rest in a single transaction; covered by an integration test.
 
 ### Blocked by
 
