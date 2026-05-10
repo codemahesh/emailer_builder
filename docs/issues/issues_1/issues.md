@@ -80,10 +80,10 @@ Static `.xlsx` and `.csv` templates served by the backend, linked from the empty
 
 ### Acceptance criteria
 
-- [ ] Both files download with correct MIME types and open without warnings in Excel/Google Sheets/Numbers.
-- [ ] Filling the template and uploading/connecting it results in a clean verify success (no `MISSING_COLUMNS`).
-- [ ] Instructions worksheet lists every column from `sheet_parser` aliases and all valid `priority` values.
-- [ ] Both download links work from the locations specified in UX §B-1.1 and §B-3 microcopy table.
+- [x] Both files download with correct MIME types and open without warnings in Excel/Google Sheets/Numbers.
+- [x] Filling the template and uploading/connecting it results in a clean verify success (no `MISSING_COLUMNS`).
+- [x] Instructions worksheet lists every column from `sheet_parser` aliases and all valid `priority` values.
+- [x] Both download links work from the locations specified in UX §B-1.1 and §B-3 microcopy table.
 
 ### Blocked by
 
