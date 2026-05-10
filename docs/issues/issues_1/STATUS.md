@@ -24,7 +24,7 @@ Source: `issues.md` in this folder. Update this file as issues are picked up, co
 
 | #  | Title                                                          | Type | Status | Blocked by | Started     | Completed   | Notes |
 |----|----------------------------------------------------------------|------|--------|------------|-------------|-------------|-------|
-| 1  | Schema foundation + `sheet_parser` extraction                  | AFK  | todo   | —          |             |             |       |
+| 1  | Schema foundation + `sheet_parser` extraction                  | AFK  | in_progress | —          | 2026-05-10  |             |       |
 | 2  | Verify endpoint + Link-tab UI with all error banners           | AFK  | todo   | 1          |             |             |       |
 | 3  | Downloadable templates                                         | AFK  | todo   | 2          |             |             |       |
 | 4  | Versioned snapshots on Full Sync                               | AFK  | todo   | 1          |             |             |       |
@@ -78,4 +78,4 @@ If an issue cannot proceed (external blocker, ambiguous spec), set status to `bl
 
 Append a one-line entry below each time an issue's status changes. Newest at the top.
 
-- _(no entries yet)_
+- 2026-05-10 — Issue 1: todo → in_progress
