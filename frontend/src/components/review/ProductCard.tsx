@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { patchProduct, type Product, type ProductPatchBody } from '../../lib/api'
 import { showToast } from '../ui/Toast'
 import { InlineTextField } from './InlineTextField'
+import { ImageEditPopover } from './ImageEditPopover'
 
 const COMING_SOON_URL = '/static/coming-soon.svg'
 
@@ -13,9 +14,15 @@ interface ProductCardProps {
 
 export function ProductCard({ product: initialProduct, campaignId, onProductUpdate }: ProductCardProps) {
   const [product, setProduct] = useState(initialProduct)
+  const [isPhotoPopoverOpen, setIsPhotoPopoverOpen] = useState(false)
 
   const imageUrl = product.processed_image_url || product.scraped_image_url || COMING_SOON_URL
   const isFailed = product.scrape_failed || imageUrl === COMING_SOON_URL
+
+  const handlePhotoUpdate = useCallback((updated: Product) => {
+    setProduct(updated)
+    onProductUpdate?.(updated)
+  }, [onProductUpdate])
 
   const handleCommit = useCallback(async (field: keyof ProductPatchBody, newValue: string) => {
     const prevValue = product[field as keyof Product] as string | undefined
@@ -38,14 +45,30 @@ export function ProductCard({ product: initialProduct, campaignId, onProductUpda
         isFailed ? 'border-error-600' : 'border-neutral-200'
       }`}
     >
-      {/* Photo */}
-      <div className="aspect-square bg-neutral-50 flex items-center justify-center overflow-hidden">
+      {/* Photo (clickable to edit) */}
+      <button
+        type="button"
+        onClick={() => setIsPhotoPopoverOpen(true)}
+        className="aspect-square bg-neutral-50 flex items-center justify-center overflow-hidden w-full relative group"
+        aria-label={`Edit photo for SKU ${product.sku}`}
+      >
         <img
           src={imageUrl}
           alt={product.scraped_name || product.sku}
           className="w-full h-full object-contain"
         />
-      </div>
+        <div className="absolute inset-0 bg-neutral-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-neutral-0 text-small font-medium">Edit photo</span>
+        </div>
+      </button>
+
+      <ImageEditPopover
+        isOpen={isPhotoPopoverOpen}
+        onClose={() => setIsPhotoPopoverOpen(false)}
+        campaignId={campaignId}
+        productId={product.id}
+        onSuccess={handlePhotoUpdate}
+      />
 
       {/* Fields */}
       <div className="p-3 flex flex-col gap-2">
