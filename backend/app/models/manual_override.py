@@ -1,9 +1,14 @@
 """
 manual_override.py
 ==================
-SQLAlchemy model for ManualOverride — manual image replacements for campaign assets.
+SQLAlchemy model for ManualOverride — manual replacements for campaign assets.
 
-Issue 11
+``override_url`` stores the replacement value for all target types:
+- For image target types (``product_image``, ``hero_banner``, etc.) it is the image URL.
+- For text target types (``product_price``, ``product_description``, ``product_pack_of``,
+  ``product_quantity``, ``product_discount``) it stores the literal text value verbatim.
+  The field name ``override_url`` is intentionally reused rather than renamed, to avoid
+  a breaking migration; a future cleanup may rename it to ``override_value``.
 """
 
 from __future__ import annotations

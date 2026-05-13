@@ -141,7 +141,7 @@ All three must succeed.
 
 ## Issue 2: PATCH product text-fields endpoint + ManualOverride extension
 
-**Status:** `[ ]` Not started
+**Status:** `[x]` Complete
 **Type:** AFK
 **Blocked by:** #1
 **Blocks:** #3, #5, #11
@@ -159,19 +159,19 @@ Document in the `ManualOverride` model file (`backend/app/models/manual_override
 
 ### Acceptance criteria
 
-- [ ] `PATCH /campaigns/{campaign_id}/products/{product_id}` route exists.
-- [ ] Requires `current_active_user` and verifies campaign ownership (404 otherwise).
-- [ ] 404 when product not found / belongs to other campaign.
-- [ ] Accepts partial body (any subset of the five fields).
-- [ ] 422 when body has no recognized fields.
-- [ ] Returns updated `ProductRead`.
-- [ ] Each touched field results in exactly one `ManualOverride` row (existing row of same target_type replaced).
-- [ ] `ManualOverride.override_url` stores the text value verbatim.
-- [ ] `ManualOverride` model file has docstring note about reuse for text values.
-- [ ] Test: PATCH one field → product updated + override row exists.
-- [ ] Test: PATCH multiple fields → multiple overrides.
-- [ ] Test: PATCH same field twice → exactly one override row remains.
-- [ ] Test: ownership check rejects other-user campaign.
+- [x] `PATCH /campaigns/{campaign_id}/products/{product_id}` route exists.
+- [x] Requires `current_active_user` and verifies campaign ownership (404 otherwise).
+- [x] 404 when product not found / belongs to other campaign.
+- [x] Accepts partial body (any subset of the five fields).
+- [x] 422 when body has no recognized fields.
+- [x] Returns updated `ProductRead`.
+- [x] Each touched field results in exactly one `ManualOverride` row (existing row of same target_type replaced).
+- [x] `ManualOverride.override_url` stores the text value verbatim.
+- [x] `ManualOverride` model file has docstring note about reuse for text values.
+- [x] Test: PATCH one field → product updated + override row exists.
+- [x] Test: PATCH multiple fields → multiple overrides.
+- [x] Test: PATCH same field twice → exactly one override row remains.
+- [x] Test: ownership check rejects other-user campaign.
 
 ### Validation
 

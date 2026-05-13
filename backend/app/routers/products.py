@@ -32,7 +32,7 @@ from app.models.manual_override import ManualOverride
 from app.models.product import Product
 from app.models.user import User
 from app.modules.image_store import image_store
-from app.schemas.sync import ProductRead
+from app.schemas.sync import ProductPatchRequest, ProductRead
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +110,61 @@ def _ext_from_mime(mime: str) -> str:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
+_TEXT_FIELD_TO_TARGET_TYPE: dict[str, str] = {
+    "formatted_price": "product_price",
+    "scraped_name": "product_description",
+    "pack_of": "product_pack_of",
+    "quantity": "product_quantity",
+    "discount": "product_discount",
+}
+
+
+@router.patch(
+    "/{campaign_id}/products/{product_id}",
+    response_model=ProductRead,
+)
+async def patch_product_text_fields(
+    campaign_id: uuid.UUID,
+    product_id: uuid.UUID,
+    body: ProductPatchRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+) -> Product:
+    """Partially update editable text fields on a product and record ManualOverride rows."""
+    await _get_campaign_or_404(campaign_id, user, session)
+    product = await _get_product_or_404(product_id, campaign_id, session)
+
+    updates = body.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="At least one field must be provided.",
+        )
+
+    for field, value in updates.items():
+        setattr(product, field, value or None)
+        target_type = _TEXT_FIELD_TO_TARGET_TYPE[field]
+        await session.execute(
+            delete(ManualOverride).where(
+                ManualOverride.campaign_id == campaign_id,
+                ManualOverride.target_type == target_type,
+                ManualOverride.target_id == str(product_id),
+            )
+        )
+        session.add(
+            ManualOverride(
+                campaign_id=campaign_id,
+                target_type=target_type,
+                target_id=str(product_id),
+                override_url=value,
+                created_by=user.id,
+            )
+        )
+
+    await session.flush()
+    return product
 
 
 @router.patch(

@@ -145,3 +145,17 @@ class SheetVersionRead(BaseModel):
 
 class ReplaceImagePayload(BaseModel):
     image_url: str
+
+
+# ── Product text-field patch ──────────────────────────────────────────────────
+
+class ProductPatchRequest(BaseModel):
+    """Partial update of editable text fields on a Product.
+
+    All fields are optional; at least one must be supplied (enforced in the endpoint).
+    """
+    formatted_price: Optional[str] = None
+    scraped_name: Optional[str] = None
+    pack_of: Optional[str] = None
+    quantity: Optional[str] = None
+    discount: Optional[str] = None
