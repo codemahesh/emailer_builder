@@ -56,6 +56,9 @@ class Product(Base):
     scraped_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     scraped_image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     processed_image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    pack_of: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    quantity: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    discount: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     scrape_failed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(

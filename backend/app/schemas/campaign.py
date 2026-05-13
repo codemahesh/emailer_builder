@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Optional
 from pydantic import BaseModel, HttpUrl, field_validator
 from app.models.campaign import CampaignStatus
 
@@ -40,6 +41,7 @@ class CampaignRead(CampaignBase):
     status: CampaignStatus
     created_at: datetime
     updated_at: datetime
+    reviewed_at: Optional[datetime] = None
     owner: CampaignOwnerRead | None = None
 
     model_config = {"from_attributes": True}

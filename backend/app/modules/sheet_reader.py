@@ -35,6 +35,9 @@ class ProductRecord(TypedDict, total=False):
     utm_campaign: Optional[str]
     utm_stitched: Optional[str]
     button_name: Optional[str]
+    pack_of: Optional[str]
+    quantity: Optional[str]
+    discount: Optional[str]
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -70,6 +73,9 @@ def _build_product_record(
         else None
     )
     button_name = row_dict.get("button_name", "").strip() or None
+    pack_of = row_dict.get("pack_of", "").strip() or None
+    quantity = row_dict.get("quantity", "").strip() or None
+    discount = row_dict.get("discount", "").strip() or None
 
     return ProductRecord(
         section_title=section_title,
@@ -81,6 +87,9 @@ def _build_product_record(
         utm_campaign=utm_campaign,
         utm_stitched=utm_stitched,
         button_name=button_name,
+        pack_of=pack_of,
+        quantity=quantity,
+        discount=discount,
     )
 
 

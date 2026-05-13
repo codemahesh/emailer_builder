@@ -26,6 +26,9 @@ CANONICAL_FIELDS: tuple[str, ...] = (
     "raw_price",
     "utm_campaign",
     "button_name",
+    "pack_of",
+    "quantity",
+    "discount",
 )
 
 REQUIRED_FIELDS: tuple[str, ...] = ("sku", "product_link")
@@ -55,6 +58,13 @@ COLUMN_ALIASES: dict[str, str] = {
     "button name": "button_name",
     "button": "button_name",
     "cta": "button_name",
+    "pack_of": "pack_of",
+    "pack of": "pack_of",
+    "pack": "pack_of",
+    "quantity": "quantity",
+    "qty": "quantity",
+    "discount": "discount",
+    "disc": "discount",
 }
 
 

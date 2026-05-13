@@ -69,6 +69,9 @@ class ProductRead(BaseModel):
     scraped_name: Optional[str] = None
     scraped_image_url: Optional[str] = None
     processed_image_url: Optional[str] = None
+    pack_of: Optional[str] = None
+    quantity: Optional[str] = None
+    discount: Optional[str] = None
     scrape_failed: bool
     position: int
     created_at: datetime

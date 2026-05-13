@@ -2,6 +2,8 @@ import enum
 import uuid
 from datetime import datetime
 
+from typing import Optional
+
 from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,6 +48,9 @@ class Campaign(Base):
     )
     archived: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, server_default="false"
+    )
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
     )
 
     owner: Mapped["User"] = relationship("User", lazy="selectin")  # type: ignore[name-defined]

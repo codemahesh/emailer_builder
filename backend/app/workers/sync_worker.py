@@ -517,6 +517,9 @@ async def run_full_sync(
                     utm_campaign=record.get("utm_campaign"),
                     utm_stitched=record.get("utm_stitched"),
                     button_name=record.get("button_name"),
+                    pack_of=record.get("pack_of"),
+                    quantity=record.get("quantity"),
+                    discount=record.get("discount"),
                     position=idx,
                 )
                 session.add(product)

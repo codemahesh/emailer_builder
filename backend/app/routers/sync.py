@@ -209,6 +209,9 @@ async def import_sheet(
             prod.raw_price = new_row.get("raw_price") or None
             prod.utm_campaign = new_row.get("utm_campaign") or None
             prod.button_name = new_row.get("button_name") or None
+            prod.pack_of = new_row.get("pack_of") or None
+            prod.quantity = new_row.get("quantity") or None
+            prod.discount = new_row.get("discount") or None
             prod.priority = prio
             if update["link_changed"]:
                 prod.product_link = new_row.get("product_link", "")
@@ -261,6 +264,9 @@ async def import_sheet(
             raw_price=new_row.get("raw_price") or None,
             utm_campaign=new_row.get("utm_campaign") or None,
             button_name=new_row.get("button_name") or None,
+            pack_of=new_row.get("pack_of") or None,
+            quantity=new_row.get("quantity") or None,
+            discount=new_row.get("discount") or None,
             position=next_pos,
             scrape_failed=True,
         )
@@ -437,6 +443,9 @@ async def upload_sheet_file(
                     raw_price=record.get("raw_price") or None,
                     utm_campaign=record.get("utm_campaign") or None,
                     button_name=record.get("button_name") or None,
+                    pack_of=record.get("pack_of") or None,
+                    quantity=record.get("quantity") or None,
+                    discount=record.get("discount") or None,
                     position=idx,
                     scrape_failed=True,   # no scraping for upload path yet
                 )

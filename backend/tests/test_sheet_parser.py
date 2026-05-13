@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import pytest
 
 from app.modules.sheet_parser import (
+    CANONICAL_FIELDS,
     COLUMN_ALIASES,
     REQUIRED_FIELDS,
     coerce_priority,
@@ -114,6 +115,39 @@ class TestRowToCanonicalDict:
         out = row_to_canonical_dict(headers, row)
         assert out["sku"] == ""
         assert out["product_link"] == ""
+
+
+class TestNewOptionalFields:
+    def test_new_columns_present_are_parsed(self):
+        headers = ["sku", "product_link", "pack_of", "quantity", "discount"]
+        row = ["SKU-1", "https://example.com", "6 pack", "500ml", "10%"]
+        out = row_to_canonical_dict(headers, row)
+        assert out["pack_of"] == "6 pack"
+        assert out["quantity"] == "500ml"
+        assert out["discount"] == "10%"
+
+    def test_new_columns_absent_leaves_them_missing_not_error(self):
+        headers = ["sku", "product_link", "raw_price"]
+        row = ["SKU-2", "https://example.com", "₹999"]
+        out = row_to_canonical_dict(headers, row)
+        assert "pack_of" not in out
+        assert "quantity" not in out
+        assert "discount" not in out
+
+    def test_new_columns_not_in_required_fields(self):
+        result = normalize_headers(["sku", "product_link"])
+        assert result["missing_required"] == []
+
+    def test_new_columns_in_canonical_fields(self):
+        assert "pack_of" in CANONICAL_FIELDS
+        assert "quantity" in CANONICAL_FIELDS
+        assert "discount" in CANONICAL_FIELDS
+
+    def test_aliases_resolve_correctly(self):
+        assert normalize_header("pack") == "pack_of"
+        assert normalize_header("pack of") == "pack_of"
+        assert normalize_header("qty") == "quantity"
+        assert normalize_header("disc") == "discount"
 
 
 class TestCoercePriority:
