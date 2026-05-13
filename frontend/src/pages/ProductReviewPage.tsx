@@ -4,6 +4,38 @@ import { getCampaign, getProducts, completeReview, type Campaign, type Product }
 import { TopBar } from '../components/layout/TopBar'
 import { ProductCard } from '../components/review/ProductCard'
 import { showToast } from '../components/ui/Toast'
+import { Modal } from '../components/ui/Modal'
+
+const COMING_SOON_URL = '/static/coming-soon.svg'
+
+interface BlankSummary {
+  blankPriceCount: number
+  placeholderPhotoCount: number
+}
+
+export function detectBlanks(products: Product[]): BlankSummary {
+  let blankPriceCount = 0
+  let placeholderPhotoCount = 0
+  for (const p of products) {
+    const hasPhoto = !p.scrape_failed && p.processed_image_url !== COMING_SOON_URL && (p.processed_image_url || p.scraped_image_url)
+    if (!hasPhoto) placeholderPhotoCount++
+    const priceBlank = !p.formatted_price
+    const discountBlank = !p.discount
+    if (priceBlank && discountBlank) blankPriceCount++
+  }
+  return { blankPriceCount, placeholderPhotoCount }
+}
+
+function buildConfirmMessage({ blankPriceCount, placeholderPhotoCount }: BlankSummary): string {
+  const parts: string[] = []
+  if (blankPriceCount > 0) {
+    parts.push(`${blankPriceCount} product${blankPriceCount !== 1 ? 's' : ''} have missing prices`)
+  }
+  if (placeholderPhotoCount > 0) {
+    parts.push(`${placeholderPhotoCount} ${placeholderPhotoCount !== 1 ? 'are' : 'is'} using a placeholder image`)
+  }
+  return parts.join(' and ') + '. Continue anyway?'
+}
 
 export function ProductReviewPage() {
   const { id } = useParams<{ id: string }>()
@@ -13,6 +45,8 @@ export function ProductReviewPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isProceeding, setIsProceeding] = useState(false)
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [confirmMessage, setConfirmMessage] = useState('')
 
   const handleProductUpdate = useCallback((updated: Product) => {
     setProducts(prev => prev.map(p => p.id === updated.id ? updated : p))
@@ -37,7 +71,7 @@ export function ProductReviewPage() {
     load()
   }, [load])
 
-  const handleProceed = useCallback(async () => {
+  const doComplete = useCallback(async () => {
     if (!id) return
     setIsProceeding(true)
     try {
@@ -48,6 +82,21 @@ export function ProductReviewPage() {
       setIsProceeding(false)
     }
   }, [id, navigate])
+
+  const handleProceed = useCallback(() => {
+    const blanks = detectBlanks(products)
+    if (blanks.blankPriceCount > 0 || blanks.placeholderPhotoCount > 0) {
+      setConfirmMessage(buildConfirmMessage(blanks))
+      setIsConfirmOpen(true)
+    } else {
+      doComplete()
+    }
+  }, [products, doComplete])
+
+  const handleConfirmContinue = useCallback(() => {
+    setIsConfirmOpen(false)
+    doComplete()
+  }, [doComplete])
 
   if (isLoading) {
     return (
@@ -109,6 +158,36 @@ export function ProductReviewPage() {
           </div>
         )}
       </div>
+
+      {/* Soft-block confirm dialog */}
+      <Modal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        title="Some products have missing content"
+        width="sm"
+        disableBackdropClose
+      >
+        <div className="p-6 flex flex-col gap-6">
+          <p className="text-body text-neutral-700">{confirmMessage}</p>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsConfirmOpen(false)}
+              className="px-4 py-2 text-body text-neutral-600 rounded hover:bg-neutral-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmContinue}
+              disabled={isProceeding}
+              className="px-4 py-2 text-body-strong text-neutral-0 rounded bg-brand-primary hover:bg-brand-primary-hover transition-colors disabled:opacity-50"
+            >
+              Continue anyway
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

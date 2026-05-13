@@ -386,7 +386,7 @@ cd frontend && npm run typecheck && npm run build
 
 ## Issue 7: Soft-block confirm dialog on Proceed
 
-**Status:** `[ ]` Not started
+**Status:** `[x]` Complete
 **Type:** AFK
 **Blocked by:** #4
 **Blocks:** #11
@@ -406,13 +406,13 @@ Refine the "Proceed to Emailer" flow so that when the user clicks Proceed, befor
 
 ### Acceptance criteria
 
-- [ ] Blank-detection logic correctly identifies placeholder photos and price+discount-blank products.
-- [ ] Confirm dialog only opens when blanks exist.
-- [ ] Dialog message includes correct counts.
-- [ ] Cancel closes dialog without side-effect.
-- [ ] Continue calls complete endpoint and navigates.
-- [ ] When no blanks: clicking Proceed proceeds directly (no dialog).
-- [ ] Manual smoke with a campaign that has 1 placeholder photo and 1 blank-price product: dialog shows correct counts.
+- [x] Blank-detection logic correctly identifies placeholder photos and price+discount-blank products.
+- [x] Confirm dialog only opens when blanks exist.
+- [x] Dialog message includes correct counts.
+- [x] Cancel closes dialog without side-effect.
+- [x] Continue calls complete endpoint and navigates.
+- [x] When no blanks: clicking Proceed proceeds directly (no dialog).
+- [x] Manual smoke with a campaign that has 1 placeholder photo and 1 blank-price product: dialog shows correct counts.
 
 ### Validation
 
