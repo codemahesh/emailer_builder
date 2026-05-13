@@ -429,7 +429,7 @@ cd frontend && npm run typecheck && npm run build
 
 ## Issue 8: Re-gating triggers after Full Sync / Update List with adds
 
-**Status:** `[ ]` Not started
+**Status:** `[x]` Complete
 **Type:** AFK
 **Blocked by:** #4
 **Blocks:** #11
@@ -447,13 +447,13 @@ After clear: the next time the user lands on `/campaigns/:id`, the redirect from
 
 ### Acceptance criteria
 
-- [ ] Full Sync completion clears `reviewed_at`.
-- [ ] Update List apply with `added > 0` clears `reviewed_at`.
-- [ ] Update List apply with only `modified`/`removed` does NOT clear `reviewed_at`.
-- [ ] Quick Price Update never clears `reviewed_at`.
-- [ ] Backend test for each of the four cases above.
-- [ ] Manual smoke: complete Review → run Quick Price Update → navigate to Workspace, NOT Review.
-- [ ] Manual smoke: complete Review → Update List with a new SKU → navigate, lands on Review.
+- [x] Full Sync completion clears `reviewed_at`.
+- [x] Update List apply with `added > 0` clears `reviewed_at`.
+- [x] Update List apply with only `modified`/`removed` does NOT clear `reviewed_at`.
+- [x] Quick Price Update never clears `reviewed_at`.
+- [x] Backend test for each of the four cases above.
+- [x] Manual smoke: complete Review → run Quick Price Update → navigate to Workspace, NOT Review.
+- [x] Manual smoke: complete Review → Update List with a new SKU → navigate, lands on Review.
 
 ### Validation
 

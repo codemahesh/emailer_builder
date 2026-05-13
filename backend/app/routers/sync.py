@@ -318,6 +318,10 @@ async def import_sheet(
     await session.refresh(job)
     job_id = str(job.id)
 
+    # Clear reviewed_at when new products were added (must re-review)
+    if diff["added"]:
+        campaign.reviewed_at = None
+
     await session.commit()
 
     # Enqueue smart re-scrape (only for link-changed + added products)

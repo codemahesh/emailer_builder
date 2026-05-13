@@ -823,7 +823,20 @@ async def run_full_sync(
         failed,
     )
 
-    # ── 5. Auto-trigger VisualOrchestrator ────────────────────────────────────
+    # ── 5. Clear reviewed_at so user must re-review after a full sync ─────────
+    try:
+        async with async_session_maker() as rv_session:
+            rv_result = await rv_session.execute(
+                select(Campaign).where(Campaign.id == uuid.UUID(cid))
+            )
+            rv_campaign = rv_result.scalar_one_or_none()
+            if rv_campaign is not None:
+                rv_campaign.reviewed_at = None
+                await rv_session.commit()
+    except Exception:  # noqa: BLE001
+        logger.warning("run_full_sync: failed to clear reviewed_at for campaign %s", cid, exc_info=True)
+
+    # ── 6. Auto-trigger VisualOrchestrator ────────────────────────────────────
     # Runs best-effort after every successful (or partial) full sync.
     # Errors are swallowed so they never block the sync result.
     try:
