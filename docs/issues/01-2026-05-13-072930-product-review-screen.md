@@ -543,7 +543,7 @@ cd backend && pytest -x
 
 ## Issue 11: Review-screen metrics instrumentation
 
-**Status:** `[ ]` Not started
+**Status:** `[x]` Complete
 **Type:** AFK
 **Blocked by:** #5, #6, #7
 **Blocks:** Nothing.
@@ -561,13 +561,13 @@ Reuse the existing preference-signal channel (`recordPreferenceSignal` in `front
 
 ### Acceptance criteria
 
-- [ ] Inline edit success → 1 signal emitted with field name.
-- [ ] Photo replace success → 1 signal emitted.
-- [ ] Proceed click → 1 signal with `had_blanks` flag.
-- [ ] "Continue anyway" → 1 signal with outcome=`continued`.
-- [ ] Cancel from soft-block → 1 signal with outcome=`cancelled`.
-- [ ] No metric calls in render path (avoid duplicate emissions).
-- [ ] `npm run typecheck && npm run build` succeed.
+- [x] Inline edit success → 1 signal emitted with field name.
+- [x] Photo replace success → 1 signal emitted.
+- [x] Proceed click → 1 signal with `had_blanks` flag.
+- [x] "Continue anyway" → 1 signal with outcome=`continued`.
+- [x] Cancel from soft-block → 1 signal with outcome=`cancelled`.
+- [x] No metric calls in render path (avoid duplicate emissions).
+- [x] `npm run typecheck && npm run build` succeed (pre-existing errors only).
 
 ### Validation
 

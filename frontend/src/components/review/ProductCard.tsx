@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { patchProduct, type Product, type ProductPatchBody } from '../../lib/api'
+import { patchProduct, recordPreferenceSignal, type Product, type ProductPatchBody } from '../../lib/api'
 import { showToast } from '../ui/Toast'
 import { InlineTextField } from './InlineTextField'
 import { ImageEditPopover } from './ImageEditPopover'
@@ -22,7 +22,13 @@ export function ProductCard({ product: initialProduct, campaignId, onProductUpda
   const handlePhotoUpdate = useCallback((updated: Product) => {
     setProduct(updated)
     onProductUpdate?.(updated)
-  }, [onProductUpdate])
+    recordPreferenceSignal({
+      signal_type: 'review_photo_replace',
+      asset_type: 'product',
+      signal_value: 'success',
+      campaign_id: campaignId,
+    }).catch(() => {})
+  }, [campaignId, onProductUpdate])
 
   const handleCommit = useCallback(async (field: keyof ProductPatchBody, newValue: string) => {
     const prevValue = product[field as keyof Product] as string | undefined
@@ -32,6 +38,12 @@ export function ProductCard({ product: initialProduct, campaignId, onProductUpda
       const updated = await patchProduct(campaignId, product.id, { [field]: newValue })
       setProduct(updated)
       onProductUpdate?.(updated)
+      recordPreferenceSignal({
+        signal_type: 'review_field_edit',
+        asset_type: 'product',
+        signal_value: field,
+        campaign_id: campaignId,
+      }).catch(() => {})
     } catch {
       setProduct(p => ({ ...p, [field]: prevValue }))
       showToast('Failed to save change', 'error')

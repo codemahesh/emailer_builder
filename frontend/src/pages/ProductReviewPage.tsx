@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getCampaign, getProducts, completeReview, type Campaign, type Product } from '../lib/api'
+import { getCampaign, getProducts, completeReview, recordPreferenceSignal, type Campaign, type Product } from '../lib/api'
 import { TopBar } from '../components/layout/TopBar'
 import { ProductCard } from '../components/review/ProductCard'
 import { showToast } from '../components/ui/Toast'
@@ -85,18 +85,41 @@ export function ProductReviewPage() {
 
   const handleProceed = useCallback(() => {
     const blanks = detectBlanks(products)
-    if (blanks.blankPriceCount > 0 || blanks.placeholderPhotoCount > 0) {
+    const hadBlanks = blanks.blankPriceCount > 0 || blanks.placeholderPhotoCount > 0
+    recordPreferenceSignal({
+      signal_type: 'review_proceed',
+      asset_type: 'review_gate',
+      signal_value: hadBlanks ? 'has_blanks' : 'no_blanks',
+      campaign_id: id ?? undefined,
+    }).catch(() => {})
+    if (hadBlanks) {
       setConfirmMessage(buildConfirmMessage(blanks))
       setIsConfirmOpen(true)
     } else {
       doComplete()
     }
-  }, [products, doComplete])
+  }, [products, doComplete, id])
 
   const handleConfirmContinue = useCallback(() => {
     setIsConfirmOpen(false)
+    recordPreferenceSignal({
+      signal_type: 'review_soft_block',
+      asset_type: 'review_gate',
+      signal_value: 'continued',
+      campaign_id: id ?? undefined,
+    }).catch(() => {})
     doComplete()
-  }, [doComplete])
+  }, [doComplete, id])
+
+  const handleConfirmCancel = useCallback(() => {
+    setIsConfirmOpen(false)
+    recordPreferenceSignal({
+      signal_type: 'review_soft_block',
+      asset_type: 'review_gate',
+      signal_value: 'cancelled',
+      campaign_id: id ?? undefined,
+    }).catch(() => {})
+  }, [id])
 
   if (isLoading) {
     return (
@@ -162,7 +185,7 @@ export function ProductReviewPage() {
       {/* Soft-block confirm dialog */}
       <Modal
         isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
+        onClose={handleConfirmCancel}
         title="Some products have missing content"
         width="sm"
         disableBackdropClose
@@ -172,7 +195,7 @@ export function ProductReviewPage() {
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => setIsConfirmOpen(false)}
+              onClick={handleConfirmCancel}
               className="px-4 py-2 text-body text-neutral-600 rounded hover:bg-neutral-100 transition-colors"
             >
               Cancel
