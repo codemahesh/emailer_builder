@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { SyncPanel } from './SyncPanel'
 import { VisualBriefPanel } from './VisualBriefPanel'
 import { QualityWarningsPanel } from './QualityWarningsPanel'
@@ -39,6 +40,7 @@ export function LeftRail({
   onCommandApply,
   onSnapshotRestored,
 }: LeftRailProps) {
+  const navigate = useNavigate()
   const [localSections, setLocalSections] = useState<Section[]>(sections)
 
   // Sync external sections to local state
@@ -63,6 +65,21 @@ export function LeftRail({
         sheetUrl={campaign.sheet_url || undefined}
         onSyncComplete={onSyncComplete}
       />
+      {products.length > 0 && (
+        <div className="px-3 py-2 border-b border-neutral-200">
+          <button
+            type="button"
+            onClick={() => navigate(`/campaigns/${campaign.id}/review`)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-body text-neutral-700 hover:bg-neutral-100 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0 text-neutral-500">
+              <path d="M8 3C4.686 3 2 5.686 2 9s2.686 6 6 6 6-2.686 6-6-2.686-6-6-6z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M8 6v3l2 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Review products
+          </button>
+        </div>
+      )}
       <VisualBriefPanel
         brief={brief}
         isLoading={isBriefLoading}

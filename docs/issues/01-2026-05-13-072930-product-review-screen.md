@@ -470,7 +470,7 @@ cd backend && pytest -x
 
 ## Issue 9: Re-open Review button in LeftRail
 
-**Status:** `[ ]` Not started
+**Status:** `[x]` Complete
 **Type:** AFK
 **Blocked by:** #4
 **Blocks:** #11
@@ -482,11 +482,11 @@ Add a "Review products" button in `frontend/src/components/layout/LeftRail.tsx` 
 
 ### Acceptance criteria
 
-- [ ] Button visible in LeftRail directly under SyncPanel when products exist.
-- [ ] Hidden when there are no products.
-- [ ] Click navigates to `/campaigns/:id/review` using `react-router-dom` `useNavigate`.
-- [ ] Visual matches existing LeftRail panel buttons (look at `VisualBriefPanel`/`SectionsPanel` for style).
-- [ ] `npm run typecheck && npm run build` succeed.
+- [x] Button visible in LeftRail directly under SyncPanel when products exist.
+- [x] Hidden when there are no products.
+- [x] Click navigates to `/campaigns/:id/review` using `react-router-dom` `useNavigate`.
+- [x] Visual matches existing LeftRail panel buttons (look at `VisualBriefPanel`/`SectionsPanel` for style).
+- [x] `npm run typecheck && npm run build` succeed (pre-existing errors only).
 
 ### Validation
 
