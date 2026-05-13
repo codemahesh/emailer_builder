@@ -35,6 +35,57 @@ _EMAIL_B = f"patch_product_user_b_{uuid.uuid4().hex[:6]}@example.com"
 _PASSWORD = "TestPass123!"
 
 
+class TestCompleteReview:
+    _token: str = ""
+    _campaign_id: str = ""
+
+    @classmethod
+    def _auth(cls, client, email, password):
+        client.post("/auth/register", json={"email": email, "password": password})
+        resp = client.post(
+            "/auth/jwt/login",
+            data={"username": email, "password": password},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        return resp.json()["access_token"]
+
+    @classmethod
+    def _headers(cls, token):
+        return {"Authorization": f"Bearer {token}"}
+
+    def test_setup_review(self, client):
+        email = f"review_complete_{uuid.uuid4().hex[:6]}@example.com"
+        TestCompleteReview._token = self._auth(client, email, _PASSWORD)
+        resp = client.post(
+            "/campaigns",
+            json={"name": "Review Test Campaign"},
+            headers=self._headers(self._token),
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data.get("reviewed_at") is None
+        TestCompleteReview._campaign_id = data["id"]
+
+    def test_complete_review_flips_reviewed_at(self, client):
+        cid = self._campaign_id
+        resp = client.post(
+            f"/campaigns/{cid}/review/complete",
+            headers=self._headers(self._token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["reviewed_at"] is not None
+
+    def test_complete_review_ownership_rejected(self, client):
+        email = f"other_user_{uuid.uuid4().hex[:6]}@example.com"
+        other_token = self._auth(client, email, _PASSWORD)
+        resp = client.post(
+            f"/campaigns/{self._campaign_id}/review/complete",
+            headers=self._headers(other_token),
+        )
+        assert resp.status_code == 404
+
+
 class TestPatchProductTextFields:
     _token_a: str = ""
     _token_b: str = ""

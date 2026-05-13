@@ -90,6 +90,7 @@ export interface Campaign {
   status: CampaignStatus
   created_at: string
   updated_at: string
+  reviewed_at: string | null
   owner: {
     id: string
     email: string
@@ -140,6 +141,11 @@ export async function updateCampaign(
 
 export async function deleteCampaign(id: string): Promise<void> {
   await api.delete(`/campaigns/${id}`)
+}
+
+export async function completeReview(campaignId: string): Promise<Campaign> {
+  const response = await api.post<Campaign>(`/campaigns/${campaignId}/review/complete`)
+  return response.data
 }
 
 // ─── Sync ─────────────────────────────────────────────────────────────────────
@@ -268,6 +274,9 @@ export interface Product {
   scraped_name?: string
   scraped_image_url?: string
   processed_image_url?: string
+  pack_of?: string
+  quantity?: string
+  discount?: string
   scrape_failed: boolean
   position: number
   created_at: string

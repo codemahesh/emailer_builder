@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -241,6 +242,32 @@ async def archive_campaign(
         )
 
     campaign.archived = True
+    await session.flush()
+    await session.refresh(campaign)
+    return campaign
+
+
+@router.post("/{campaign_id}/review/complete", response_model=CampaignRead)
+async def complete_review(
+    campaign_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+) -> Campaign:
+    """Mark the product review as complete by setting reviewed_at = now()."""
+    result = await session.execute(
+        select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.owner_id == user.id,
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    if campaign is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found",
+        )
+
+    campaign.reviewed_at = datetime.now(timezone.utc)
     await session.flush()
     await session.refresh(campaign)
     return campaign

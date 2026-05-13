@@ -227,7 +227,7 @@ cd backend && pytest -x backend/tests
 
 ## Issue 4: Read-only Review page + gating redirect + complete endpoint
 
-**Status:** `[ ]` Not started
+**Status:** `[x]` Complete
 **Type:** AFK
 **Blocked by:** #1
 **Blocks:** #5, #6, #7, #8, #9
@@ -254,20 +254,20 @@ No inline editing, no photo popover, no soft-block — those are later issues.
 
 ### Acceptance criteria
 
-- [ ] `POST /campaigns/:id/review/complete` exists, ownership-checked, sets `reviewed_at`, returns campaign.
-- [ ] Backend test: endpoint flips `reviewed_at` from null to a timestamp.
-- [ ] Backend test: ownership rejected.
-- [ ] `/campaigns/:id/review` route registered, protected.
-- [ ] Direct navigation to `/campaigns/:id` with `reviewed_at == null` redirects to `/campaigns/:id/review`.
-- [ ] Direct navigation to `/campaigns/:id` with `reviewed_at != null` stays on Workspace.
-- [ ] Grid renders all products fetched from `getProducts`.
-- [ ] Card shows: Photo (square), Description (`scraped_name`, 2-line truncate), Price (`formatted_price`), Discount (chip when present), Pack of, Quantity.
-- [ ] Failed-scrape card has placeholder photo + red border.
-- [ ] Empty text fields render muted "—".
-- [ ] Both price and discount visible when both present.
-- [ ] "Proceed to Emailer" button calls complete endpoint, then navigates to Workspace.
-- [ ] After Proceed, user lands on Workspace (not redirected back to Review).
-- [ ] `npm run build` and `tsc --noEmit` succeed.
+- [x] `POST /campaigns/:id/review/complete` exists, ownership-checked, sets `reviewed_at`, returns campaign.
+- [x] Backend test: endpoint flips `reviewed_at` from null to a timestamp.
+- [x] Backend test: ownership rejected.
+- [x] `/campaigns/:id/review` route registered, protected.
+- [x] Direct navigation to `/campaigns/:id` with `reviewed_at == null` redirects to `/campaigns/:id/review`.
+- [x] Direct navigation to `/campaigns/:id` with `reviewed_at != null` stays on Workspace.
+- [x] Grid renders all products fetched from `getProducts`.
+- [x] Card shows: Photo (square), Description (`scraped_name`, 2-line truncate), Price (`formatted_price`), Discount (chip when present), Pack of, Quantity.
+- [x] Failed-scrape card has placeholder photo + red border.
+- [x] Empty text fields render muted "—".
+- [x] Both price and discount visible when both present.
+- [x] "Proceed to Emailer" button calls complete endpoint, then navigates to Workspace.
+- [x] After Proceed, user lands on Workspace (not redirected back to Review).
+- [x] `npm run build` and `tsc --noEmit` succeed (pre-existing errors only, no new errors).
 
 ### Validation
 

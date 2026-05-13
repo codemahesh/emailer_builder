@@ -9,6 +9,7 @@ import { ReviewPage } from './pages/ReviewPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { PreferencesPage } from './pages/PreferencesPage'
 import { ReviewerDashboardPage } from './pages/ReviewerDashboardPage'
+import { ProductReviewPage } from './pages/ProductReviewPage'
 import { ToastContainer } from './components/ui/Toast'
 
 export default function App() {
@@ -30,6 +31,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <WorkspacePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/campaigns/:id/review"
+            element={
+              <ProtectedRoute>
+                <ProductReviewPage />
               </ProtectedRoute>
             }
           />

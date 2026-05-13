@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import {
   getCampaign,
   getProducts,
@@ -332,6 +332,11 @@ export function WorkspacePage() {
         </div>
       </div>
     )
+  }
+
+  // Gate: if campaign hasn't been reviewed yet, redirect to the review page
+  if (!isLoading && campaign && campaign.reviewed_at == null) {
+    return <Navigate to={`/campaigns/${id}/review`} replace />
   }
 
   const breadcrumbs = campaign

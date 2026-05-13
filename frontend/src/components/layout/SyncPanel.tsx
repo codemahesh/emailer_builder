@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import {
@@ -294,6 +295,7 @@ function ServiceAccountRow({ email }: { email: string }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplete }: SyncPanelProps) {
+  const navigate = useNavigate()
   const serviceAccountEmail =
     (import.meta as unknown as { env: Record<string, string> }).env.VITE_SERVICE_ACCOUNT_EMAIL ??
     'emailer-builder@your-project.iam.gserviceaccount.com'
@@ -421,8 +423,13 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
           if (k > 0) parts.push(`${k} preserved (manual overrides).`)
           showToast(parts.join(' '), 'success')
         }
+        const wasFullSync = lastActionRef.current === 'full'
         lastActionRef.current = null
         onSyncComplete?.()
+        // After a full sync, navigate to the Review page (gate redirect will enforce it anyway)
+        if (wasFullSync) {
+          navigate(`/campaigns/${campaignId}/review`)
+        }
       } else if (s.status === 'partial') {
         setSyncPhase('partial')
         setHasEverSynced(true)
@@ -433,7 +440,7 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
         setSyncPhase('idle')
       }
     },
-    [onSyncComplete, stopPolling]
+    [onSyncComplete, stopPolling, navigate, campaignId]
   )
 
   const startPolling = useCallback(() => {
