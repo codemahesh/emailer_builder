@@ -28,6 +28,7 @@ from app.models.campaign import Campaign
 from app.models.product import Product
 from app.models.sync_job import SyncJob, SyncJobStatus
 from app.models.user import User
+from app.modules.override_applicator import apply_text_overrides
 from app.models.sheet_version import SheetVersion, SheetVersionRow
 from app.modules.file_parser import UploadParseError, detect_file_type, parse_bytes
 from app.modules.sheet_diff import compute_diff
@@ -296,6 +297,13 @@ async def import_sheet(
             prod.scrape_failed = True
             prod.updated_at = now
             rescrape_product_ids.append(str(prod.id))
+
+    # Apply text ManualOverride values for updated + restored products (wins over sheet)
+    updated_product_ids = [
+        p.id for sku, p in existing_by_sku.items()
+        if p.deleted_at is None
+    ]
+    await apply_text_overrides(session, campaign_id, updated_product_ids)
 
     # Create SyncJob for the re-scrape
     from app.models.sync_job import SyncJob, SyncJobStatus

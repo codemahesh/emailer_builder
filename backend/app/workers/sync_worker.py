@@ -35,6 +35,7 @@ from app.models.manual_override import ManualOverride
 from app.models.product import Product, ProductPriority, Section
 from app.models.sync_job import SyncJob, SyncJobStatus
 from app.models.visual_brief import VisualBrief
+from app.modules.override_applicator import TEXT_OVERRIDE_TARGET_FIELD, apply_text_overrides
 from app.modules.sheet_reader import read_sheet
 from app.modules.sheet_version_store import prune_old_versions, write_version
 from app.modules.product_scraper import scrape_product
@@ -469,12 +470,39 @@ async def run_full_sync(
             if campaign is None:
                 raise ValueError(f"Campaign {cid} not found")
 
+            # Capture text ManualOverrides keyed by SKU before hard-deleting products
+            old_prods_result = await session.execute(
+                select(Product.id, Product.sku).where(Product.campaign_id == uuid.UUID(cid))
+            )
+            old_uuid_to_sku: dict[str, str] = {str(r.id): (r.sku or "") for r in old_prods_result.all()}
+
+            mo_result = await session.execute(
+                select(ManualOverride).where(
+                    ManualOverride.campaign_id == uuid.UUID(cid),
+                    ManualOverride.target_type.in_(TEXT_OVERRIDE_TARGET_FIELD.keys()),
+                )
+            )
+            # sku → {target_type: override_value}
+            text_overrides_by_sku: dict[str, dict[str, str]] = {}
+            for mo in mo_result.scalars().all():
+                if mo.target_id and mo.target_id in old_uuid_to_sku:
+                    sku = old_uuid_to_sku[mo.target_id]
+                    if sku:
+                        text_overrides_by_sku.setdefault(sku, {})[mo.target_type] = mo.override_url
+
             # Delete existing products and sections for a clean full sync
             await session.execute(
                 delete(Product).where(Product.campaign_id == uuid.UUID(cid))
             )
             await session.execute(
                 delete(Section).where(Section.campaign_id == uuid.UUID(cid))
+            )
+            # Delete stale text ManualOverride rows (their target_ids are about to be invalid)
+            await session.execute(
+                delete(ManualOverride).where(
+                    ManualOverride.campaign_id == uuid.UUID(cid),
+                    ManualOverride.target_type.in_(TEXT_OVERRIDE_TARGET_FIELD.keys()),
+                )
             )
             await session.flush()
 
@@ -542,6 +570,32 @@ async def run_full_sync(
                             "last_synced": None,
                         },
                     )
+
+            # Re-apply saved text ManualOverrides to newly-created products (by SKU)
+            if text_overrides_by_sku:
+                new_prods_result = await session.execute(
+                    select(Product).where(Product.campaign_id == uuid.UUID(cid))
+                )
+                for new_product in new_prods_result.scalars().all():
+                    sku = new_product.sku or ""
+                    overrides_for_sku = text_overrides_by_sku.get(sku)
+                    if not overrides_for_sku:
+                        continue
+                    for target_type, value in overrides_for_sku.items():
+                        field = TEXT_OVERRIDE_TARGET_FIELD.get(target_type)
+                        if field:
+                            setattr(new_product, field, value)
+                    # Recreate ManualOverride rows with new product UUID
+                    for target_type, value in overrides_for_sku.items():
+                        session.add(
+                            ManualOverride(
+                                campaign_id=uuid.UUID(cid),
+                                target_type=target_type,
+                                target_id=str(new_product.id),
+                                override_url=value,
+                            )
+                        )
+                await session.flush()
 
             # Touch campaign.updated_at
             campaign.updated_at = datetime.now(timezone.utc)

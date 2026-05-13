@@ -190,7 +190,7 @@ cd backend && pytest -x backend/tests/test_routers_products.py
 
 ## Issue 3: ManualOverride wins for text fields during sync
 
-**Status:** `[ ]` Not started
+**Status:** `[x]` Complete
 **Type:** AFK
 **Blocked by:** #2
 **Blocks:** (nothing structurally, but PRD Story 7 won't be true until this lands)
@@ -204,13 +204,13 @@ This must apply to: Full Sync, Update List apply (`importSheetCommit`), and Quic
 
 ### Acceptance criteria
 
-- [ ] Sync materialization code applies non-image `ManualOverride` rows.
-- [ ] Mapping (target_type → Product attribute) is the inverse of the mapping in #2.
-- [ ] Test: edit a price via the PATCH endpoint → run a Full Sync → price remains the user's value (sheet's price is discarded).
-- [ ] Test: edit description → Update List apply → description preserved.
-- [ ] Test: edit pack_of → Quick Price Update → pack_of preserved.
-- [ ] Test: no override for a field → sheet value wins (regression safety).
-- [ ] Existing image-override test still passes.
+- [x] Sync materialization code applies non-image `ManualOverride` rows.
+- [x] Mapping (target_type → Product attribute) is the inverse of the mapping in #2.
+- [x] Test: edit a price via the PATCH endpoint → run a Full Sync → price remains the user's value (sheet's price is discarded).
+- [x] Test: edit description → Update List apply → description preserved.
+- [x] Test: edit pack_of → Quick Price Update → pack_of preserved.
+- [x] Test: no override for a field → sheet value wins (regression safety).
+- [x] Existing image-override test still passes.
 
 ### Validation
 

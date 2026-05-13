@@ -35,6 +35,7 @@ from app.models.campaign import Campaign
 from app.models.product import Product
 from app.models.snapshot import Snapshot
 from app.models.sync_job import SyncJob, SyncJobStatus
+from app.modules.override_applicator import apply_text_overrides
 from app.modules.sheet_reader import read_sheet
 from app.ws.gateway import gateway
 
@@ -325,6 +326,10 @@ async def run_fast_sync(
                             "failed": failed,
                         },
                     )
+
+            # Apply text ManualOverride values — these win over the new sheet prices
+            updated_ids = [p.id for p in existing_products if (p.sku or "").strip() in sku_to_record]
+            await apply_text_overrides(session, uuid.UUID(cid), updated_ids)
 
             # Touch campaign.updated_at
             camp_result2 = await session.execute(
