@@ -503,7 +503,7 @@ cd frontend && npm run typecheck && npm run build
 
 ## Issue 10: Email rendering for blank pack/quantity/discount
 
-**Status:** `[ ]` Not started
+**Status:** `[!]` Blocked / needs human
 **Type:** **HITL** (open question — needs decision from render team / product)
 **Blocked by:** #1
 **Blocks:** Nothing structurally; pure render-quality polish.
