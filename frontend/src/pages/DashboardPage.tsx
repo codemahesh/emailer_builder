@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 import {
@@ -6,6 +6,9 @@ import {
   createCampaign,
   duplicateCampaign,
   archiveCampaign,
+  uploadSheetFile,
+  startFullSync,
+  getSyncStatus,
   type Campaign,
   type CampaignStatus,
 } from '../lib/api'
@@ -199,6 +202,9 @@ function CampaignCard({ campaign, onClick, onDuplicated, onArchived }: CampaignC
 
 // ─── New Campaign Modal ───────────────────────────────────────────────────────
 
+type ModalStep = 'form' | 'syncing' | 'error'
+type ImportSource = 'link' | 'upload'
+
 interface NewCampaignModalProps {
   isOpen: boolean
   onClose: () => void
@@ -206,124 +212,302 @@ interface NewCampaignModalProps {
 }
 
 function NewCampaignModal({ isOpen, onClose, onCreated }: NewCampaignModalProps) {
+  const navigate = useNavigate()
+  const [step, setStep] = useState<ModalStep>('form')
+  const [source, setSource] = useState<ImportSource>('link')
   const [name, setName] = useState('')
   const [sheetUrl, setSheetUrl] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<{ name?: string; sheetUrl?: string }>({})
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [syncMessage, setSyncMessage] = useState('')
+  const [syncProgress, setSyncProgress] = useState({ processed: 0, total: 0 })
+  const [errorMsg, setErrorMsg] = useState('')
+  const [campaignCreated, setCampaignCreated] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const campaignIdRef = useRef('')
+  const syncStartRef = useRef(0)
 
   const serviceAccountEmail =
-    import.meta.env.VITE_SERVICE_ACCOUNT_EMAIL ??
+    ((import.meta as unknown as { env: Record<string, string> }).env.VITE_SERVICE_ACCOUNT_EMAIL) ??
     'emailer-builder@your-project.iam.gserviceaccount.com'
 
-  const isValid = name.trim().length > 0
+  const isValid =
+    name.trim().length > 0 &&
+    (source === 'link' ? sheetUrl.trim().length > 0 : selectedFile !== null)
+
+  const stopPoll = () => {
+    if (pollRef.current) { clearTimeout(pollRef.current); pollRef.current = null }
+  }
 
   const resetForm = () => {
+    stopPoll()
+    setStep('form')
+    setSource('link')
     setName('')
     setSheetUrl('')
-    setErrors({})
+    setSelectedFile(null)
+    setSyncMessage('')
+    setSyncProgress({ processed: 0, total: 0 })
+    setErrorMsg('')
+    setCampaignCreated(false)
+    campaignIdRef.current = ''
+    syncStartRef.current = 0
   }
 
   const handleClose = () => {
+    if (step === 'syncing') return
     resetForm()
     onClose()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!isValid) return
-
-    setIsSubmitting(true)
-    try {
-      const campaign = await createCampaign({
-        name: name.trim(),
-        sheet_url: sheetUrl.trim(),
-      })
-      onCreated(campaign)
-      resetForm()
-      showToast(`Campaign "${campaign.name}" created`, 'success')
-    } catch {
-      showToast('Failed to create campaign', 'error')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const [copied, setCopied] = useState(false)
   const handleCopyEmail = async () => {
     await navigator.clipboard.writeText(serviceAccountEmail)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
+  useEffect(() => { return () => stopPoll() }, [])
+
+  const pollSyncStatus = (cid: string) => {
+    const elapsed = Date.now() - syncStartRef.current
+    if (elapsed > 180_000) {
+      stopPoll()
+      navigate(`/campaigns/${cid}`)
+      return
+    }
+    getSyncStatus(cid)
+      .then((status) => {
+        const s = status.status
+        if (s === 'completed' || s === 'partial') {
+          stopPoll()
+          navigate(`/campaigns/${cid}/review`)
+        } else if (s === 'failed') {
+          stopPoll()
+          setErrorMsg('Sync failed. You can continue to the workspace to retry.')
+          setStep('error')
+        } else {
+          if (status.total > 0) {
+            setSyncProgress({ processed: status.processed, total: status.total })
+            setSyncMessage(`Processing products… ${status.processed} / ${status.total}`)
+          }
+          pollRef.current = setTimeout(() => pollSyncStatus(cid), 1500)
+        }
+      })
+      .catch(() => {
+        pollRef.current = setTimeout(() => pollSyncStatus(cid), 3000)
+      })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isValid || step === 'syncing') return
+
+    setStep('syncing')
+    setSyncMessage('Creating campaign…')
+
+    try {
+      const campaign = await createCampaign({
+        name: name.trim(),
+        sheet_url: source === 'link' ? sheetUrl.trim() : undefined,
+      })
+      campaignIdRef.current = campaign.id
+      setCampaignCreated(true)
+      onCreated(campaign)
+
+      if (source === 'upload') {
+        setSyncMessage('Importing products…')
+        const result = await uploadSheetFile(campaign.id, selectedFile!)
+        if (!result.ok) {
+          setErrorMsg(
+            result.error_code === 'MISSING_COLUMNS'
+              ? 'File is missing required columns (sku, product_link). Please fix and try again.'
+              : 'Could not import the file. Please check the format and try again.',
+          )
+          setStep('error')
+          return
+        }
+        navigate(`/campaigns/${campaign.id}/review`)
+      } else {
+        setSyncMessage('Starting sync…')
+        await startFullSync(campaign.id)
+        syncStartRef.current = Date.now()
+        pollRef.current = setTimeout(() => pollSyncStatus(campaign.id), 1500)
+      }
+    } catch {
+      if (!campaignIdRef.current) {
+        setErrorMsg('Failed to create campaign. Please try again.')
+      } else {
+        setErrorMsg('Campaign created but sync could not start. Go to the workspace to retry.')
+      }
+      setStep('error')
+    }
+  }
+
+  const handleGoToWorkspace = () => {
+    const cid = campaignIdRef.current
+    stopPoll()
+    onClose()
+    if (cid) navigate(`/campaigns/${cid}`)
+  }
+
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="New Campaign" width="md">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-6 py-5">
-        {/* Service account hint */}
-        <div className="flex flex-col gap-2">
-          <p className="text-small text-neutral-600">
-            Share your Google Sheet with this service account before connecting:
-          </p>
-          <div className="flex items-center gap-2 bg-neutral-100 rounded-md px-3 py-2 border border-neutral-200">
-            <span className="text-small text-neutral-600 font-mono truncate flex-1 min-w-0">
-              {serviceAccountEmail}
-            </span>
-            <button
-              type="button"
-              onClick={handleCopyEmail}
-              className="flex-shrink-0 text-small-strong text-brand-primary hover:text-brand-primary-hover transition-colors"
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={step === 'syncing' ? 'Syncing products…' : 'New Campaign'}
+      width="md"
+      disableBackdropClose={step === 'syncing'}
+    >
+      {/* ── Step 1: Form ── */}
+      {step === 'form' && (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-6 py-5">
+          {/* Source selection */}
+          <div className="flex flex-col gap-2">
+            <span className="text-body-strong text-neutral-800">Import products from</span>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setSource('link')}
+                className={[
+                  'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
+                  source === 'link'
+                    ? 'border-brand-primary bg-brand-primary/5'
+                    : 'border-neutral-200 bg-neutral-0 hover:border-neutral-300',
+                ].join(' ')}
+              >
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="2" y="2" width="24" height="24" rx="4" fill="#34A853" fillOpacity="0.12"/>
+                  <rect x="6" y="6" width="16" height="16" rx="1.5" stroke="#34A853" strokeWidth="1.5"/>
+                  <line x1="6" y1="11" x2="22" y2="11" stroke="#34A853" strokeWidth="1.25"/>
+                  <line x1="6" y1="16" x2="22" y2="16" stroke="#34A853" strokeWidth="1.25"/>
+                  <line x1="11" y1="6" x2="11" y2="22" stroke="#34A853" strokeWidth="1.25"/>
+                </svg>
+                <span className="text-body-strong text-neutral-800">Google Sheet</span>
+                <span className="text-small text-neutral-500">Paste a Sheets URL</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSource('upload')}
+                className={[
+                  'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
+                  source === 'upload'
+                    ? 'border-brand-primary bg-brand-primary/5'
+                    : 'border-neutral-200 bg-neutral-0 hover:border-neutral-300',
+                ].join(' ')}
+              >
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="2" y="2" width="24" height="24" rx="4" fill="#2E5BFF" fillOpacity="0.08"/>
+                  <path d="M14 18V10M14 10L10.5 13.5M14 10L17.5 13.5" stroke="#2E5BFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M8 21h12" stroke="#2E5BFF" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                <span className="text-body-strong text-neutral-800">Upload file</span>
+                <span className="text-small text-neutral-500">.xlsx or .csv</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Campaign name */}
+          <Input
+            label="Campaign name"
+            placeholder="e.g. Summer 2025 Newsletter"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoFocus
+          />
+
+          {/* Source-specific input */}
+          {source === 'link' ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2 bg-neutral-50 rounded-md px-3 py-2 border border-neutral-200">
+                <span className="text-small text-neutral-500 font-mono flex-1 min-w-0 truncate">
+                  {serviceAccountEmail}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyEmail}
+                  className="flex-shrink-0 text-small-strong text-brand-primary hover:text-brand-primary-hover transition-colors"
+                >
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <p className="text-small text-neutral-500 -mt-1">
+                Share your Google Sheet with the above email first.
+              </p>
+              <Input
+                label="Google Sheet URL"
+                type="url"
+                placeholder="https://docs.google.com/spreadsheets/d/…"
+                value={sheetUrl}
+                onChange={(e) => setSheetUrl(e.target.value)}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-body-strong text-neutral-800">File</label>
+              <input
+                type="file"
+                accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                className="text-body text-neutral-800 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-body file:bg-neutral-100 file:text-neutral-800 hover:file:bg-neutral-200 cursor-pointer"
+              />
+              <p className="text-small text-neutral-400">Must include "sku" and "product_link" columns.</p>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 pt-1 border-t border-neutral-100 -mx-6 px-6 pb-1 mt-1">
+            <Button type="button" variant="ghost" onClick={handleClose}>Cancel</Button>
+            <Button type="submit" variant="primary" disabled={!isValid}>
+              Create &amp; Sync
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {/* ── Step 2: Syncing ── */}
+      {step === 'syncing' && (
+        <div className="flex flex-col items-center gap-5 px-6 py-10">
+          <div className="w-10 h-10 rounded-full border-[3px] border-brand-primary border-t-transparent animate-spin" />
+          <p className="text-body text-neutral-600 text-center">{syncMessage}</p>
+          {syncProgress.total > 0 && (
+            <div className="w-full flex flex-col gap-1.5">
+              <div className="w-full bg-neutral-100 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-brand-primary h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.round((syncProgress.processed / syncProgress.total) * 100)}%` }}
+                />
+              </div>
+              <p className="text-small text-neutral-400 text-center">
+                {syncProgress.processed} of {syncProgress.total} products processed
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Step 3: Error ── */}
+      {step === 'error' && (
+        <div className="flex flex-col items-center gap-5 px-6 py-8">
+          <div className="w-10 h-10 rounded-full bg-danger-50 flex items-center justify-center text-danger-600 text-lg font-bold">
+            ✕
+          </div>
+          <p className="text-body text-neutral-700 text-center">{errorMsg}</p>
+          <div className="flex gap-3">
+            {campaignCreated ? (
+              <>
+                <Button variant="ghost" onClick={handleClose}>Close</Button>
+                <Button variant="primary" onClick={handleGoToWorkspace}>Go to Workspace</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={handleClose}>Cancel</Button>
+                <Button variant="primary" onClick={() => { setStep('form'); setErrorMsg('') }}>Try Again</Button>
+              </>
+            )}
           </div>
         </div>
-
-        <Input
-          label="Campaign name"
-          placeholder="e.g. Summer 2025 Newsletter"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value)
-            if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }))
-          }}
-          error={errors.name}
-          required
-          autoFocus
-        />
-
-        <Input
-          label="Google Sheet URL"
-          type="url"
-          placeholder="https://docs.google.com/spreadsheets/d/..."
-          value={sheetUrl}
-          onChange={(e) => {
-            setSheetUrl(e.target.value)
-            if (errors.sheetUrl)
-              setErrors((prev) => ({ ...prev, sheetUrl: undefined }))
-          }}
-          error={errors.sheetUrl}
-          helperText="Optional — you can add this later in the workspace"
-        />
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 pt-1 border-t border-neutral-100 -mx-6 px-6 pb-1 mt-1">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            isLoading={isSubmitting}
-            disabled={!isValid || isSubmitting}
-          >
-            Create Campaign
-          </Button>
-        </div>
-      </form>
+      )}
     </Modal>
   )
 }
@@ -335,7 +519,6 @@ export function DashboardPage() {
   const { user } = useAuth()
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
-  const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all')
   const [showNewModal, setShowNewModal] = useState(false)
@@ -348,7 +531,6 @@ export function DashboardPage() {
           status: filter === 'all' ? undefined : filter,
         })
         setCampaigns(result.items)
-        setTotal(result.total)
       } catch {
         showToast('Failed to load campaigns', 'error')
       } finally {
@@ -367,8 +549,7 @@ export function DashboardPage() {
   }
 
   const handleCampaignCreated = (campaign: Campaign) => {
-    setShowNewModal(false)
-    navigate(`/campaigns/${campaign.id}`)
+    setCampaigns(prev => [campaign, ...prev])
   }
 
   const handleCardClick = (campaignId: string) => {
@@ -496,11 +677,9 @@ export function DashboardPage() {
                 onClick={() => handleCardClick(campaign.id)}
                 onDuplicated={(newCampaign) => {
                   setCampaigns((prev) => [newCampaign, ...prev])
-                  setTotal((t) => t + 1)
                 }}
                 onArchived={(archivedId) => {
                   setCampaigns((prev) => prev.filter((c) => c.id !== archivedId))
-                  setTotal((t) => Math.max(0, t - 1))
                 }}
               />
             ))}

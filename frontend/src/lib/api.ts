@@ -316,6 +316,23 @@ export const revertProductImage = (
     .post(`/campaigns/${campaignId}/products/${productId}/revert-image`)
     .then((r) => r.data)
 
+export interface ProductPatchBody {
+  formatted_price?: string
+  scraped_name?: string
+  pack_of?: string
+  quantity?: string
+  discount?: string
+}
+
+export const patchProduct = (
+  campaignId: string,
+  productId: string,
+  body: ProductPatchBody,
+): Promise<Product> =>
+  api
+    .patch(`/campaigns/${campaignId}/products/${productId}`, body)
+    .then((r) => r.data)
+
 // ─── Render ───────────────────────────────────────────────────────────────────
 
 export interface RenderResponse {
