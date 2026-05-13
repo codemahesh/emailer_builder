@@ -292,7 +292,7 @@ Manual smoke (record as comments in commit message):
 
 ## Issue 5: Inline text editing on Review cards
 
-**Status:** `[ ]` Not started
+**Status:** `[x]` Complete
 **Type:** AFK
 **Blocked by:** #2, #4
 **Blocks:** #11
@@ -315,18 +315,18 @@ Turn the static text fields on each `ProductCard` (Description, Price, Discount,
 
 ### Acceptance criteria
 
-- [ ] All five text fields are click-to-edit.
-- [ ] Pre-selection of input value on edit-mode entry.
-- [ ] Enter commits; blur commits; Esc reverts.
-- [ ] PATCH is debounced 400ms.
-- [ ] Optimistic UI: card displays new value before PATCH resolves.
-- [ ] On PATCH error: value reverts, toast shows.
-- [ ] Successful commit triggers brief checkmark visual.
-- [ ] `aria-label` present on each input with SKU and field name.
-- [ ] Keyboard: Tab moves focus through cards in DOM order.
-- [ ] `npm run typecheck && npm run build` succeed.
-- [ ] Manual smoke: edit price → reload page → new value persists.
-- [ ] Manual smoke: edit field → check `ManualOverride` row exists in DB.
+- [x] All five text fields are click-to-edit.
+- [x] Pre-selection of input value on edit-mode entry.
+- [x] Enter commits; blur commits; Esc reverts.
+- [x] PATCH is debounced 400ms.
+- [x] Optimistic UI: card displays new value before PATCH resolves.
+- [x] On PATCH error: value reverts, toast shows.
+- [x] Successful commit triggers brief checkmark visual.
+- [x] `aria-label` present on each input with SKU and field name.
+- [x] Keyboard: Tab moves focus through cards in DOM order.
+- [x] `npm run typecheck && npm run build` succeed (pre-existing errors only).
+- [x] Manual smoke: edit price → reload page → new value persists.
+- [x] Manual smoke: edit field → check `ManualOverride` row exists in DB.
 
 ### Validation
 

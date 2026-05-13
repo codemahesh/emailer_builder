@@ -1,25 +1,36 @@
-import type { Product } from '../../lib/api'
+import { useCallback, useState } from 'react'
+import { patchProduct, type Product, type ProductPatchBody } from '../../lib/api'
+import { showToast } from '../ui/Toast'
+import { InlineTextField } from './InlineTextField'
 
 const COMING_SOON_URL = '/static/coming-soon.svg'
 
 interface ProductCardProps {
   product: Product
+  campaignId: string
+  onProductUpdate?: (updated: Product) => void
 }
 
-function FieldRow({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-small text-neutral-400">{label}</span>
-      <span className="text-body text-neutral-800 break-words">
-        {value || <span className="text-neutral-400">—</span>}
-      </span>
-    </div>
-  )
-}
+export function ProductCard({ product: initialProduct, campaignId, onProductUpdate }: ProductCardProps) {
+  const [product, setProduct] = useState(initialProduct)
 
-export function ProductCard({ product }: ProductCardProps) {
   const imageUrl = product.processed_image_url || product.scraped_image_url || COMING_SOON_URL
   const isFailed = product.scrape_failed || imageUrl === COMING_SOON_URL
+
+  const handleCommit = useCallback(async (field: keyof ProductPatchBody, newValue: string) => {
+    const prevValue = product[field as keyof Product] as string | undefined
+    if (newValue === (prevValue ?? '')) return
+    setProduct(p => ({ ...p, [field]: newValue || undefined }))
+    try {
+      const updated = await patchProduct(campaignId, product.id, { [field]: newValue })
+      setProduct(updated)
+      onProductUpdate?.(updated)
+    } catch {
+      setProduct(p => ({ ...p, [field]: prevValue }))
+      showToast('Failed to save change', 'error')
+      throw new Error('patch failed')
+    }
+  }, [campaignId, product, onProductUpdate])
 
   return (
     <div
@@ -41,27 +52,56 @@ export function ProductCard({ product }: ProductCardProps) {
         {/* Description */}
         <div className="flex flex-col gap-0.5">
           <span className="text-small text-neutral-400">Description</span>
-          <span className="text-body text-neutral-800 line-clamp-2">
-            {product.scraped_name || <span className="text-neutral-400">—</span>}
-          </span>
+          <div className="line-clamp-2 overflow-hidden">
+            <InlineTextField
+              value={product.scraped_name}
+              onCommit={(v) => handleCommit('scraped_name', v)}
+              ariaLabel={`Edit description for SKU ${product.sku}`}
+            />
+          </div>
         </div>
 
-        {/* Price + Discount */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-body text-neutral-800">
-            {product.formatted_price || <span className="text-neutral-400">—</span>}
-          </span>
-          {product.discount && (
-            <span className="text-small px-1.5 py-0.5 rounded-full bg-brand-primary text-neutral-0">
-              {product.discount}
-            </span>
-          )}
+        {/* Price */}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-small text-neutral-400">Price</span>
+          <InlineTextField
+            value={product.formatted_price}
+            onCommit={(v) => handleCommit('formatted_price', v)}
+            ariaLabel={`Edit price for SKU ${product.sku}`}
+          />
         </div>
 
-        <FieldRow label="Pack of" value={product.pack_of} />
-        <FieldRow label="Quantity" value={product.quantity} />
+        {/* Discount */}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-small text-neutral-400">Discount</span>
+          <InlineTextField
+            value={product.discount}
+            onCommit={(v) => handleCommit('discount', v)}
+            ariaLabel={`Edit discount for SKU ${product.sku}`}
+          />
+        </div>
 
-        {/* SKU — small muted */}
+        {/* Pack of */}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-small text-neutral-400">Pack of</span>
+          <InlineTextField
+            value={product.pack_of}
+            onCommit={(v) => handleCommit('pack_of', v)}
+            ariaLabel={`Edit pack of for SKU ${product.sku}`}
+          />
+        </div>
+
+        {/* Quantity */}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-small text-neutral-400">Quantity</span>
+          <InlineTextField
+            value={product.quantity}
+            onCommit={(v) => handleCommit('quantity', v)}
+            ariaLabel={`Edit quantity for SKU ${product.sku}`}
+          />
+        </div>
+
+        {/* SKU */}
         <span className="text-small text-neutral-400 mt-1">SKU: {product.sku}</span>
       </div>
     </div>

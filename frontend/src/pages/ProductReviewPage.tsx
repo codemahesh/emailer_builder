@@ -14,6 +14,10 @@ export function ProductReviewPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isProceeding, setIsProceeding] = useState(false)
 
+  const handleProductUpdate = useCallback((updated: Product) => {
+    setProducts(prev => prev.map(p => p.id === updated.id ? updated : p))
+  }, [])
+
   const load = useCallback(async () => {
     if (!id) return
     setIsLoading(true)
@@ -95,7 +99,12 @@ export function ProductReviewPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                campaignId={id!}
+                onProductUpdate={handleProductUpdate}
+              />
             ))}
           </div>
         )}
