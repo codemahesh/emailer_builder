@@ -96,6 +96,30 @@ def _comment_to_dict(comment: Comment) -> dict[str, Any]:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
+@router.get("/review/{token}/comments")
+async def list_review_comments(
+    token: str,
+    db: AsyncSession = Depends(get_async_session),
+) -> list[dict[str, Any]]:
+    """
+    Public endpoint — no auth required.
+
+    Return all unresolved comments for the campaign associated with this token.
+    """
+    review_token = await _validate_token(token, db)
+
+    result = await db.execute(
+        select(Comment)
+        .where(
+            Comment.campaign_id == review_token.campaign_id,
+            Comment.resolved == False,  # noqa: E712
+        )
+        .order_by(Comment.created_at.asc())
+    )
+    comments = list(result.scalars().all())
+    return [_comment_to_dict(c) for c in comments]
+
+
 @router.post("/review/{token}/comments", status_code=status.HTTP_201_CREATED)
 async def create_comment(
     token: str,

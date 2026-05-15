@@ -5,6 +5,7 @@ import { TopBar } from '../components/layout/TopBar'
 import { ProductCard } from '../components/review/ProductCard'
 import { showToast } from '../components/ui/Toast'
 import { Modal } from '../components/ui/Modal'
+import { ThemePlanModal } from '../components/modals/ThemePlanModal'
 
 const COMING_SOON_URL = '/static/coming-soon.svg'
 
@@ -47,6 +48,7 @@ export function ProductReviewPage() {
   const [isProceeding, setIsProceeding] = useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [confirmMessage, setConfirmMessage] = useState('')
+  const [isThemePlanOpen, setIsThemePlanOpen] = useState(false)
 
   const handleProductUpdate = useCallback((updated: Product) => {
     setProducts(prev => prev.map(p => p.id === updated.id ? updated : p))
@@ -76,12 +78,13 @@ export function ProductReviewPage() {
     setIsProceeding(true)
     try {
       await completeReview(id)
-      navigate(`/campaigns/${id}`, { replace: true })
+      setIsThemePlanOpen(true)
     } catch {
       showToast('Failed to complete review', 'error')
+    } finally {
       setIsProceeding(false)
     }
-  }, [id, navigate])
+  }, [id])
 
   const handleProceed = useCallback(() => {
     const blanks = detectBlanks(products)
@@ -120,6 +123,11 @@ export function ProductReviewPage() {
       campaign_id: id ?? undefined,
     }).catch(() => {})
   }, [id])
+
+  const handleThemeDone = useCallback(() => {
+    setIsThemePlanOpen(false)
+    navigate(`/campaigns/${id}`, { replace: true })
+  }, [id, navigate])
 
   if (isLoading) {
     return (
@@ -181,6 +189,15 @@ export function ProductReviewPage() {
           </div>
         )}
       </div>
+
+      {/* Theme planning modal — shown after product review is completed */}
+      {id && (
+        <ThemePlanModal
+          campaignId={id}
+          isOpen={isThemePlanOpen}
+          onDone={handleThemeDone}
+        />
+      )}
 
       {/* Soft-block confirm dialog */}
       <Modal

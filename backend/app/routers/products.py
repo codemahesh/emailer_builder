@@ -164,6 +164,7 @@ async def patch_product_text_fields(
         )
 
     await session.flush()
+    await session.refresh(product)
     return product
 
 
@@ -292,6 +293,7 @@ async def replace_product_image(
     )
 
     await session.flush()
+    await session.refresh(product)
     return product
 
 
@@ -323,4 +325,5 @@ async def revert_product_image(
     )
 
     await session.flush()
+    await session.refresh(product)
     return product

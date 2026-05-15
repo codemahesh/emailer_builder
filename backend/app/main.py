@@ -29,6 +29,7 @@ from app.routers import approvals
 from app.routers import preferences
 from app.routers import chat
 from app.routers import vibe_shift
+from app.routers import theme_plan
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.ws.gateway import gateway
 
@@ -222,6 +223,9 @@ app.include_router(chat.router, tags=["chat"])
 
 # Vibe Shift (Issue 15)
 app.include_router(vibe_shift.router, tags=["vibe-shift"])
+
+# Theme plan — LLM theme planning after product review
+app.include_router(theme_plan.router, prefix="/campaigns", tags=["theme-plan"])
 
 
 @app.get("/auth/me", response_model=UserRead, tags=["auth"])

@@ -291,19 +291,16 @@ export const replaceProductImage = (
   productId: string,
   data: { image_url?: string } | FormData,
 ): Promise<Product> => {
-  if (data instanceof FormData) {
-    return api
-      .patch(
-        `/campaigns/${campaignId}/products/${productId}/replace-image`,
-        data,
-        { headers: { 'Content-Type': 'multipart/form-data' } },
-      )
-      .then((r) => r.data)
-  }
+  const form = data instanceof FormData ? data : (() => {
+    const fd = new FormData()
+    if (data.image_url) fd.append('image_url', data.image_url)
+    return fd
+  })()
   return api
     .patch(
       `/campaigns/${campaignId}/products/${productId}/replace-image`,
-      data,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
     )
     .then((r) => r.data)
 }
@@ -673,6 +670,41 @@ export const confirmVibeShift = (
   directive: string,
 ): Promise<{ brief: VisualBrief; html: string }> =>
   api.post(`/campaigns/${campaignId}/vibe-shift/confirm`, { directive }).then((r) => r.data)
+
+// ─── Theme Plan ───────────────────────────────────────────────────────────────
+
+export interface ThemePlan {
+  theme_name: string
+  rationale: string
+  template_id: string
+  background_color: string
+  section_color: string
+  accent_color: string
+  button_color: string
+  product_bg_color: string
+  heading_font: string
+  body_font: string
+  h1_size: number
+  h2_size: number
+  body_size: number
+  dalle_prompt: string
+}
+
+export const previewThemePlan = (
+  campaignId: string,
+  userFeedback?: string,
+): Promise<ThemePlan> =>
+  api
+    .post(`/campaigns/${campaignId}/theme-plan`, { user_feedback: userFeedback ?? '' })
+    .then((r) => r.data)
+
+export const applyThemePlan = (
+  campaignId: string,
+  userFeedback?: string,
+): Promise<OrchestrateResponse> =>
+  api
+    .post(`/campaigns/${campaignId}/theme-plan/apply`, { user_feedback: userFeedback ?? '' })
+    .then((r) => r.data)
 
 // ─── Campaign actions ─────────────────────────────────────────────────────────
 

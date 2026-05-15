@@ -330,6 +330,8 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastActionRef = useRef<'full' | 'quick_price' | null>(null)
+  const fullSyncRetryCountRef = useRef(0)
+  const startPollingRef = useRef<() => void>(() => {})
   const kebabRef = useRef<HTMLDivElement>(null)
   const updateListButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -401,19 +403,53 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
         return
       }
       stopPolling()
+
+      const wasFullSync = lastActionRef.current === 'full'
+
+      // Retry sync for failed products (up to 3 attempts) before navigating to Review
+      const tryRetry = (failedCount: number): boolean => {
+        if (!wasFullSync || fullSyncRetryCountRef.current >= 3) return false
+        fullSyncRetryCountRef.current += 1
+        showToast(
+          `${failedCount} product(s) failed to sync. Retrying (attempt ${fullSyncRetryCountRef.current}/3)…`,
+          'info',
+        )
+        setWsProgress({ done: 0, total: 0 })
+        setLastCompletedSku(undefined)
+        setSyncPhase('running')
+        setSyncStatus({ status: 'queued', total: 0, processed: 0, failed: 0 })
+        startFullSync(campaignId)
+          .then(() => startPollingRef.current())
+          .catch(() => {
+            showToast('Retry failed to start. Proceeding to review.', 'error')
+            lastActionRef.current = null
+            fullSyncRetryCountRef.current = 3
+            navigate(`/campaigns/${campaignId}/review`)
+          })
+        return true
+      }
+
       if (s.status === 'completed') {
         setSyncPhase('success')
         setHasEverSynced(true)
         if (lastActionRef.current === 'quick_price') {
           showToast(`Prices updated for ${s.processed} SKUs. Images untouched.`, 'success')
-        } else if (lastActionRef.current === 'full') {
+        } else if (wasFullSync) {
+          if (s.failed > 0 && tryRetry(s.failed)) return
           const k = preservedCountRef.current
-          showToast(
-            k > 0
-              ? `Synced ${s.processed} products. ${k} images preserved (manual overrides).`
-              : `Synced ${s.processed} products.`,
-            'success',
-          )
+          if (s.failed > 0) {
+            showToast(
+              `Synced ${s.processed} products. ${s.failed} could not be synced after 3 retries.`,
+              'warn',
+            )
+          } else {
+            showToast(
+              k > 0
+                ? `Synced ${s.processed} products. ${k} images preserved (manual overrides).`
+                : `Synced ${s.processed} products.`,
+              'success',
+            )
+          }
         } else {
           // import scrape (Update List)
           const m = rescrapedCountRef.current
@@ -423,19 +459,31 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
           if (k > 0) parts.push(`${k} preserved (manual overrides).`)
           showToast(parts.join(' '), 'success')
         }
-        const wasFullSync = lastActionRef.current === 'full'
         lastActionRef.current = null
+        fullSyncRetryCountRef.current = 0
         onSyncComplete?.()
-        // After a full sync, navigate to the Review page (gate redirect will enforce it anyway)
         if (wasFullSync) {
           navigate(`/campaigns/${campaignId}/review`)
         }
       } else if (s.status === 'partial') {
-        setSyncPhase('partial')
         setHasEverSynced(true)
+        if (wasFullSync && s.failed > 0 && tryRetry(s.failed)) return
+        setSyncPhase('partial')
+        lastActionRef.current = null
+        fullSyncRetryCountRef.current = 0
         onSyncComplete?.()
+        if (wasFullSync) {
+          navigate(`/campaigns/${campaignId}/review`)
+        }
       } else if (s.status === 'failed') {
+        // Treat a total sync failure as all products failed for retry purposes
+        if (wasFullSync && tryRetry(s.total || 1)) return
         setSyncPhase('sync_error')
+        if (wasFullSync) {
+          lastActionRef.current = null
+          fullSyncRetryCountRef.current = 0
+          navigate(`/campaigns/${campaignId}/review`)
+        }
       } else {
         setSyncPhase('idle')
       }
@@ -454,6 +502,9 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
       }
     }, 2000)
   }, [campaignId, handleSyncStatusUpdate, stopPolling])
+
+  // Keep ref current so handleSyncStatusUpdate can call startPolling without circular deps
+  startPollingRef.current = startPolling
 
   useEffect(() => () => stopPolling(), [stopPolling])
 
@@ -508,6 +559,7 @@ export function SyncPanel({ campaignId, sheetUrl: initialSheetUrl, onSyncComplet
   const handleConfirmFullSync = async () => {
     setShowConfirmModal(false)
     lastActionRef.current = 'full'
+    fullSyncRetryCountRef.current = 0
     preservedCountRef.current = 0
     rescrapedCountRef.current = 0
     setWsProgress({ done: 0, total: 0 })

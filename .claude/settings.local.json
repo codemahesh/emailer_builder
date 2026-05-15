@@ -44,7 +44,28 @@
       "PowerShell(Get-NetTCPConnection *)",
       "Bash(chmod +x docs/issues/issues_1/run.sh)",
       "Bash(where.exe claude *)",
-      "PowerShell(cmd /c 'type docs\\\\issues\\\\issues_1\\\\PROMPT.md | claude -p --dangerously-skip-permissions --model claude-opus-4-7' > docs\\\\issues\\\\issues_1\\\\ralph.log 2>&1; \"exit=$LASTEXITCODE\")"
+      "PowerShell(cmd /c 'type docs\\\\issues\\\\issues_1\\\\PROMPT.md | claude -p --dangerously-skip-permissions --model claude-opus-4-7' > docs\\\\issues\\\\issues_1\\\\ralph.log 2>&1; \"exit=$LASTEXITCODE\")",
+      "PowerShell(cd D:\\\\emailer_builder\\\\frontend; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"PreviewTable|SyncPanel|api.ts\" })",
+      "PowerShell(cd D:\\\\emailer_builder\\\\frontend; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"UploadDropzone|SyncPanel|Dropzone\" })",
+      "PowerShell(cd D:\\\\emailer_builder\\\\frontend; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"UpdateSummary|SyncPanel|import_sheet|importSheet\" })",
+      "Bash(python -m pytest tests/test_quick_price_update.py -v)",
+      "Bash(python *)",
+      "Bash(xargs grep -l \"WebSocket\\\\|ws://\\\\|gateway\\\\|send_progress\\\\|sync_progress\")",
+      "Bash(xargs grep -l \"ManualOverride\\\\|manual_override\")",
+      "Bash(xargs grep -l \"preview\\\\|sheet\")",
+      "Bash(pip install *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\emailer_builder\\\\backend\\\\app\\\\models\" -File)",
+      "Bash(Select-Object Name)",
+      "PowerShell(New-Item *)",
+      "PowerShell(git *)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\emailer_builder\" -Recurse -Directory | Select-Object -First 30 | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\emailer_builder\\\\frontend\\\\src\" -Recurse -File | Where-Object { $_.Name -match \"\\(context|reducer|store\\)\" } | ForEach-Object { $_.FullName })",
+      "Bash(xargs grep -l \"edit\\\\|Edit\\\\|patch\\\\|update\")",
+      "Bash(xargs grep -l \"review\\\\|patch\\\\|product\")",
+      "Bash(xargs grep -l \"review\\\\|product\")",
+      "Bash(Get-ChildItem -Path \"D:\\\\emailer_builder\" -Recurse -Force)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\emailer_builder\" -Recurse -Depth 3 -Force | Select-Object -Property FullName | ConvertTo-Csv -NoTypeInformation | ForEach-Object { $_ -replace '\"', '' } | Select-Object -First 100)"
     ]
   }
 }
